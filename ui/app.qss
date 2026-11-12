@@ -1,0 +1,89 @@
+QMainWindow {
+    background: #eef3f2;
+}
+QWidget {
+    color: #1b3231;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    font-size: 10pt;
+}
+QLabel#app_title {
+    color: #143f39;
+    font-size: 21pt;
+    font-weight: 700;
+}
+QTabWidget::pane {
+    border: none;
+}
+QTabBar::tab {
+    background: #e1ebe8;
+    color: #254740;
+    border-radius: 5px;
+    padding: 9px 16px;
+    margin-right: 5px;
+}
+QTabBar::tab:selected {
+    background: #17624e;
+    color: white;
+}
+QGroupBox {
+    background: white;
+    border: 1px solid #cfddda;
+    border-radius: 9px;
+    margin-top: 12px;
+    padding: 15px 12px 9px;
+    font-weight: 600;
+}
+QGroupBox::title {
+    background: white;
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 13px;
+    padding: 0 5px;
+}
+QGroupBox QWidget {
+    font-weight: 400;
+}
+QLineEdit, QPlainTextEdit, QComboBox, QSpinBox {
+    background: #fbfdfd;
+    border: 1px solid #aebfbb;
+    border-radius: 5px;
+    padding: 5px 8px;
+    selection-background-color: #17624e;
+}
+QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus, QSpinBox:focus, QPushButton:focus {
+    border: 1px solid #167f67;
+}
+QPushButton {
+    background: #f4f8f7;
+    border: 1px solid #b4c7c1;
+    border-radius: 5px;
+    padding: 7px 12px;
+}
+QPushButton:hover {
+    background: #e3efeb;
+}
+QPushButton[styleClass="primary"] {
+    background: #17624e;
+    color: white;
+    border-color: #17624e;
+    font-weight: 600;
+}
+QPushButton[styleClass="primary"]:hover {
+    background: #124d3e;
+}
+QPushButton:disabled {
+    background: #e8eeec;
+    color: #5c716c;
+    border-color: #d1ddda;
+}
+QLabel[styleClass="metric"] {
+    color: #17624e;
+    font-weight: 700;
+    font-size: 17pt;
+}
+QLabel[styleClass="hint"] {
+    color: #4d6662;
+}
+QLabel[styleClass="error"] {
+    color: #a02a23;
+}
