@@ -1,0 +1,6 @@
+<RCC>
+ <qresource prefix="/design">
+  <!-- Ron Lach, Pexels (https://www.pexels.com/photo/close-up-view-of-soaps-and-brush-10568472/) -->
+  <file>kitchen.jpg</file>
+ </qresource>
+</RCC>
