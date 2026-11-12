@@ -6,6 +6,7 @@ from PyQt6.QtCore import QLocale
 from PyQt6.QtWidgets import QApplication, QMainWindow
 
 from calculator import CalculatorPage
+from forecast import ForecastPage
 from prices import PricesPage
 
 
@@ -19,6 +20,7 @@ class MainWindow(QMainWindow):
         self.calculator = CalculatorPage()
         self.tabs.addTab(self.calculator, "Расход")
         self.tabs.addTab(PricesPage(), "Сравнение цен")
+        self.tabs.addTab(ForecastPage(self.calculator), "Прогноз")
 
 
 def main():

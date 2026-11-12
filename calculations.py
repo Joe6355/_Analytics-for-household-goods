@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 
 
 UNITS = ("мл", "г", "шт.")
@@ -18,7 +18,10 @@ def read_number(text: str, field: str, *, allow_zero: bool = False) -> Decimal:
 
 
 def format_number(value: Decimal | int, places: int = 3, *, fixed: bool = False) -> str:
-    rounded = Decimal(value).quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
+    value = Decimal(value)
+    with localcontext() as context:
+        context.prec = max(context.prec, value.adjusted() + places + 2)
+        rounded = value.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
     whole, _, fraction = f"{rounded:,.{places}f}".partition(".")
     if not fixed:
         fraction = fraction.rstrip("0")
@@ -33,17 +36,26 @@ def format_money(value: Decimal) -> str:
 @dataclass(frozen=True)
 class Usage:
     amount: Decimal
-    average: Decimal
-    cost_per_use: Decimal
-    full_uses: int
+    sample_total: Decimal
     sample_count: int
     unit: str
 
+    @property
+    def average(self) -> Decimal:
+        return self.consumption(1)
 
-def calculate_usage(amount: Decimal, price: Decimal, samples: list[Decimal], unit: str) -> Usage:
+    @property
+    def full_uses(self) -> int:
+        return int(self.amount * self.sample_count // self.sample_total)
+
+    def consumption(self, uses: int, periods: int = 1) -> Decimal:
+        return self.sample_total * uses / (self.sample_count * periods)
+
+    def cost(self, price: Decimal, uses: int = 1, periods: int = 1) -> Decimal:
+        return price * self.sample_total * uses / (self.amount * self.sample_count * periods)
+
+
+def calculate_usage(amount: Decimal, samples: list[Decimal], unit: str) -> Usage:
     if not samples:
         raise ValueError("Добавьте хотя бы один замер расхода.")
-    total = sum(samples, Decimal(0))
-    count = len(samples)
-    return Usage(amount, total / count, price * total / (amount * count),
-                 int(amount * count // total), count, unit)
+    return Usage(amount, sum(samples, Decimal(0)), len(samples), unit)

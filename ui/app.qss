@@ -84,6 +84,9 @@ QLabel[styleClass="metric"] {
 QLabel[styleClass="hint"] {
     color: #4d6662;
 }
+QLabel[styleClass="heading"] {
+    font-weight: 700;
+}
 QLabel[styleClass="error"] {
     color: #a02a23;
 }
