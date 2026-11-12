@@ -87,3 +87,17 @@ QLabel[styleClass="hint"] {
 QLabel[styleClass="error"] {
     color: #a02a23;
 }
+QTableWidget {
+    background: white;
+    alternate-background-color: #f4f8f7;
+    border: 1px solid #cfddda;
+    gridline-color: #e1ebe8;
+    selection-background-color: #17624e;
+    selection-color: white;
+}
+QHeaderView::section {
+    background: #e1ebe8;
+    border: 0;
+    padding: 6px;
+    font-weight: 600;
+}

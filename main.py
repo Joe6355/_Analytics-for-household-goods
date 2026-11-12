@@ -6,6 +6,7 @@ from PyQt6.QtCore import QLocale
 from PyQt6.QtWidgets import QApplication, QMainWindow
 
 from calculator import CalculatorPage
+from prices import PricesPage
 
 
 UI_DIR = Path(__file__).with_name("ui")
@@ -17,6 +18,7 @@ class MainWindow(QMainWindow):
         uic.loadUi(str(UI_DIR / "main.ui"), self)
         self.calculator = CalculatorPage()
         self.tabs.addTab(self.calculator, "Расход")
+        self.tabs.addTab(PricesPage(), "Сравнение цен")
 
 
 def main():
