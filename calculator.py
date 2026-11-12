@@ -23,12 +23,16 @@ class CalculatorPage(QWidget):
         self.samples_input.textChanged.connect(self.on_inputs_changed)
         self.unit_input.currentIndexChanged.connect(self.on_inputs_changed)
 
-    def read_usage(self) -> Usage:
+    def read_package(self) -> tuple[Decimal, str]:
         amount = read_number(self.amount_input.text(), "Количество в упаковке")
+        return amount, self.unit_input.currentText()
+
+    def read_usage(self) -> Usage:
+        amount, unit = self.read_package()
         samples = [read_number(line, f"Замер в строке {index}")
                    for index, line in enumerate(self.samples_input.toPlainText().splitlines(), 1)
                    if line.strip()]
-        return calculate_usage(amount, samples, self.unit_input.currentText())
+        return calculate_usage(amount, samples, unit)
 
     def read_inputs(self) -> tuple[Usage, Decimal]:
         price = read_number(self.price_input.text(), "Цена упаковки", allow_zero=True)
