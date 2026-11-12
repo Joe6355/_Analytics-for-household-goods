@@ -17,6 +17,11 @@ class StoreMarkup(HTMLParser):
         self.metadata = defaultdict(set)
         self.scripts = []
         self.script = None
+        self.woocommerce_product = False
+        self.in_woocommerce_price = False
+        self.in_old_price = False
+        self.amount_text = None
+        self.woocommerce_prices = set()
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
@@ -30,14 +35,42 @@ class StoreMarkup(HTMLParser):
         if content and name:
             self.metadata[name.lower()].add(content.strip())
 
+        if tag == "body":
+            classes = set((attributes.get("class") or "").split())
+            self.woocommerce_product = {"woocommerce", "single-product"} <= classes
+        elif self.woocommerce_product and tag == "p":
+            self.in_woocommerce_price = "price" in (attributes.get("class") or "").split()
+            self.in_old_price = False
+            self.amount_text = None
+        elif self.in_woocommerce_price and tag == "del":
+            self.in_old_price = True
+        elif self.in_woocommerce_price and tag == "bdi" and not self.in_old_price:
+            self.amount_text = []
+
     def handle_data(self, data):
         if self.script is not None:
             self.script.append(data)
+        if self.amount_text is not None:
+            self.amount_text.append(data)
 
     def handle_endtag(self, tag):
         if tag == "script" and self.script is not None:
             self.scripts.append("".join(self.script))
             self.script = None
+
+        if not self.in_woocommerce_price:
+            return
+        if tag == "bdi" and self.amount_text is not None:
+            amount = "".join(self.amount_text).strip()
+            if amount.endswith("₽") and (price := ruble_price(amount, "₽")) is not None:
+                self.woocommerce_prices.add(price)
+            self.amount_text = None
+        elif tag == "del":
+            self.in_old_price = False
+        elif tag == "p":
+            self.in_woocommerce_price = False
+            self.in_old_price = False
+            self.amount_text = None
 
 
 def schema_nodes(data):
@@ -149,8 +182,7 @@ def parse_price(html: bytes, content_type: str = "") -> tuple[Decimal, str]:
         if isinstance(product.get("name"), str):
             title = product["name"]
 
-    if not prices:
-        prices = metadata_prices(markup.metadata)
+    prices = prices or metadata_prices(markup.metadata) or markup.woocommerce_prices
     if len(prices) > 1:
         raise ValueError("В карточке несколько цен. Выберите нужную на сайте и введите вручную.")
     if not prices:
