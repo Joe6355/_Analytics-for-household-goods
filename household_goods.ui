@@ -185,7 +185,7 @@ QHeaderView::section {
         <height>16777215</height>
        </size>
       </property>
-      <layout class="QVBoxLayout" name="sidebarLayout" stretch="0,1">
+      <layout class="QVBoxLayout" name="sidebarLayout" stretch="0,1,0">
        <property name="spacing">
         <number>0</number>
        </property>
@@ -305,6 +305,16 @@ QHeaderView::section {
           </size>
          </property>
         </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="sidebarImage">
+         <property name="pixmap">
+          <pixmap resource="household_goods.qrc">:/household-goods-sidebar.png</pixmap>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -1938,7 +1948,9 @@ QHeaderView::section {
    </layout>
   </widget>
  </widget>
- <resources/>
+ <resources>
+  <include location="household_goods.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>sectionList</sender>
