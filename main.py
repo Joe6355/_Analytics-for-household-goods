@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 from pathlib import Path
+from unicodedata import normalize
 
 from PyQt6 import uic
 from PyQt6.QtCore import Qt
@@ -26,11 +27,15 @@ def read_number(text, error_message):
     return Decimal(text.replace(",", "."))
 
 
-def read_package(amount, price):
-    package_amount = read_number(amount, "Введите количество в упаковке числом.")
-    if package_amount <= 0:
+def read_package_amount(text):
+    amount = read_number(text, "Введите количество в упаковке числом.")
+    if amount <= 0:
         raise ValueError("Количество в упаковке должно быть больше нуля.")
+    return amount
 
+
+def read_package(amount, price):
+    package_amount = read_package_amount(amount)
     price_error = "Введите цену числом от нуля и выше."
     package_price = read_number(price, price_error)
     if package_price < 0:
@@ -38,11 +43,7 @@ def read_package(amount, price):
     return package_amount, package_price
 
 
-def validate_usage(product, amount, price, measurements):
-    if not product.strip():
-        raise ValueError("Введите название товара.")
-
-    package_amount, package_price = read_package(amount, price)
+def read_measurements(measurements):
     samples = []
     for line_number, line in enumerate(measurements.splitlines(), start=1):
         if line.strip():
@@ -53,13 +54,25 @@ def validate_usage(product, amount, price, measurements):
             samples.append(sample)
     if not samples:
         raise ValueError("Добавьте хотя бы один замер расхода.")
-    return package_amount, package_price, samples
+    return samples
+
+
+def validate_usage(product, amount, price, measurements):
+    if not product.strip():
+        raise ValueError("Введите название товара.")
+
+    package_amount, package_price = read_package(amount, price)
+    return package_amount, package_price, read_measurements(measurements)
+
+
+def average_usage(samples):
+    return sum(Fraction(sample) for sample in samples) / len(samples)
 
 
 def calculate_usage(package_amount, package_price, samples):
     # Точные дроби сохраняют границу полного применения до округления результата.
     amount = Fraction(package_amount)
-    average = sum(Fraction(sample) for sample in samples) / len(samples)
+    average = average_usage(samples)
     cost_per_use = Fraction(package_price) * average / amount
     full_uses = amount // average
     return average, cost_per_use, full_uses
@@ -128,12 +141,26 @@ class HouseholdGoodsWindow(QMainWindow):
         self.offerUnit.currentTextChanged.connect(self.update_offers_table)
         self.update_offers_table()
 
-        self.sectionStack.currentChanged.connect(self.update_demo_note)
-        self.update_demo_note()
+        self.characteristicsProduct.setTextFormat(Qt.TextFormat.PlainText)
+        self.componentCount.setTextFormat(Qt.TextFormat.PlainText)
+        self.compositionInput.clear()
+        self.componentCount.clear()
+        self.compositionInput.textChanged.connect(self.componentCount.clear)
+        self.analyzeCompositionButton.clicked.connect(self.analyze_composition)
+        self.testCountInput.setValue(0)
+        self.successCountInput.setValue(0)
+        self.testCountInput.valueChanged.connect(self.update_effectiveness)
+        self.successCountInput.valueChanged.connect(self.update_effectiveness)
+        self.update_effectiveness()
 
-    def update_demo_note(self):
+        self.sectionStack.currentChanged.connect(self.update_page)
+        self.update_page()
+
+    def update_page(self):
         page = self.sectionStack.currentWidget()
-        self.demoNote.setVisible(page not in (self.usagePage, self.pricesPage, self.forecastPage))
+        self.demoNote.setVisible(page is self.accountPage)
+        if page is self.characteristicsPage:
+            self.update_characteristics_package()
 
     def clear_usage_result(self):
         self.usageCostValue.setText("—")
@@ -302,6 +329,64 @@ class HouseholdGoodsWindow(QMainWindow):
         stores = dict.fromkeys(offer.store for offer in self.offers if offer.price_per_unit == best_price)
         best_amount = format_number(best_price * scale, 2)
         self.bestPriceLabel.setText(f"Лучшая цена — {best_amount} ₽ за {quantity} ({', '.join(stores)}).")
+
+    def update_characteristics_package(self):
+        self.characteristicsProduct.setText(self.productInput.text().strip())
+        self.labelPackageInput.clear()
+        self.packageShareLabel.setText("Укажите количество в упаковке на вкладке «Расход».")
+        try:
+            amount = read_package_amount(self.packageInput.text())
+        except (ValueError, InvalidOperation):
+            return
+
+        unit = self.packageUnit.currentText()
+        package = format(amount, "f").replace(".", ",")
+        self.labelPackageInput.setText(f"{package} {unit}")
+        try:
+            samples = read_measurements(self.measurementsInput.toPlainText())
+        except (ValueError, InvalidOperation):
+            self.packageShareLabel.setText("Для расчёта доли упаковки проверьте замеры на вкладке «Расход».")
+            return
+
+        share = 100 * average_usage(samples) / Fraction(amount)
+        self.packageShareLabel.setText(f"Расход за применение — {format_quantity(share)} % упаковки")
+
+    def analyze_composition(self):
+        components = {}
+        repeated = {}
+        text = self.compositionInput.toPlainText().replace(";", "\n")
+        for entry in text.splitlines():
+            component = " ".join(normalize("NFC", entry).split())
+            if not component:
+                continue
+            key = component.casefold()
+            if key in components:
+                repeated[key] = components[key]
+            else:
+                components[key] = component
+
+        if not components:
+            self.componentCount.setText("Введите состав с этикетки.")
+            return
+
+        result = f"Уникальных компонентов — {len(components)}"
+        if repeated:
+            result += f"\nПовторы — {', '.join(repeated.values())}"
+        self.componentCount.setText(result)
+
+    def update_effectiveness(self):
+        tested = self.testCountInput.value()
+        successful = self.successCountInput.value()
+        result = "—"
+        error = ""
+        if successful > tested:
+            error = f"Успешных применений может быть от 0 до {tested}."
+        elif tested:
+            percent = Fraction(100 * successful, tested)
+            result = f"{format_quantity(percent)} %"
+        self.effectivenessValue.setText(result)
+        self.effectivenessError.setText(error)
+        self.effectivenessError.setVisible(bool(error))
 
 
 if __name__ == "__main__":
