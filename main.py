@@ -12,6 +12,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QTableWidgetItem
 
+from account_client import AccountController
 from price_loader import PriceLoader
 
 
@@ -153,14 +154,17 @@ class HouseholdGoodsWindow(QMainWindow):
         self.successCountInput.valueChanged.connect(self.update_effectiveness)
         self.update_effectiveness()
 
+        self.account = AccountController(self)
+        self.demoNote.hide()
         self.sectionStack.currentChanged.connect(self.update_page)
         self.update_page()
 
     def update_page(self):
         page = self.sectionStack.currentWidget()
-        self.demoNote.setVisible(page is self.accountPage)
         if page is self.characteristicsPage:
             self.update_characteristics_package()
+        elif page is self.accountPage:
+            self.account.refresh_history()
 
     def clear_usage_result(self):
         self.usageCostValue.setText("—")
@@ -201,6 +205,11 @@ class HouseholdGoodsWindow(QMainWindow):
             self.usageCostValue.setText(f"{cost_text} ₽")
             self.fullUsesValue.setText(full_uses_text)
             self.statusBar().showMessage("Расход рассчитан.", 3000)
+            details = (
+                f"Средний расход — {self.averageUsageValue.text()}. "
+                f"Стоимость применения — {cost_text} ₽. Полных применений — {full_uses_text}."
+            )
+            self.account.record("Расчёт расхода", self.productInput.text(), details)
         finally:
             self.calculateUsageButton.setEnabled(True)
 
@@ -246,6 +255,8 @@ class HouseholdGoodsWindow(QMainWindow):
         self.forecastProduct.setText(f"{product} · {package} {unit}")
         self.durationValue.setText(f"{days_text} дн.")
         self.set_forecast_rows(rows)
+        details = f"Упаковки хватит на {days_text} дн. Затраты — {rows[0][2]} ₽ в месяц и {rows[1][2]} ₽ в год."
+        self.account.record("Прогноз", product, details)
 
     def load_price(self):
         self.price_loader.load(self.productLinkInput.text())
@@ -266,6 +277,7 @@ class HouseholdGoodsWindow(QMainWindow):
         self.statusBar().showMessage("Цена загружена. Проверьте количество в упаковке и нажмите «Добавить».", 8000)
         if self.sectionStack.currentWidget() is self.pricesPage:
             self.offerPackageInput.setFocus()
+        self.account.record("Загрузка цены", "", f"{store} — {self.offerPriceInput.text()} ₽ за упаковку.")
 
     def show_price_error(self, message):
         self.set_price_loading(False)
@@ -284,6 +296,8 @@ class HouseholdGoodsWindow(QMainWindow):
         self.offers.append(Offer(store, amount, price))
         self.offers.sort(key=lambda offer: offer.price_per_unit)
         self.update_offers_table()
+        if len(self.offers) >= 2:
+            self.account.record("Сравнение цен", "", self.bestPriceLabel.text())
         self.productLinkInput.clear()
         self.storeInput.clear()
         self.offerPackageInput.clear()
@@ -373,6 +387,7 @@ class HouseholdGoodsWindow(QMainWindow):
         if repeated:
             result += f"\nПовторы — {', '.join(repeated.values())}"
         self.componentCount.setText(result)
+        self.account.record("Анализ состава", self.productInput.text(), result)
 
     def update_effectiveness(self):
         tested = self.testCountInput.value()

@@ -1780,7 +1780,7 @@ QHeaderView::section {
                 <number>23</number>
                </property>
                <item>
-                <layout class="QVBoxLayout" name="signInLayout" stretch="0,0,0,0,0,0,1">
+                <layout class="QVBoxLayout" name="signInLayout" stretch="0,0,0,0,0,0,0,1">
                  <property name="spacing">
                   <number>9</number>
                  </property>
@@ -1848,6 +1848,16 @@ QHeaderView::section {
                     </widget>
                    </item>
                   </layout>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="accountStatus">
+                   <property name="wordWrap">
+                    <bool>true</bool>
+                   </property>
+                   <property name="role" stdset="0">
+                    <string>muted</string>
+                   </property>
+                  </widget>
                  </item>
                  <item>
                   <spacer name="signInSpacer">
