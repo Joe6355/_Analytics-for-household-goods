@@ -1,6 +1,7 @@
 import json
 import re
 from collections import defaultdict
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from html.parser import HTMLParser
 
@@ -10,6 +11,35 @@ RUBLE_CURRENCIES = {"RUB", "RUR", "₽"}
 PRICE_TEXT = re.compile(r"(?:[0-9]{1,9}|[0-9]{1,3}(?:[ \u00a0\u202f][0-9]{3}){1,2})(?:[.,][0-9]{1,8})?")
 CHARSET = re.compile(r"charset\s*=\s*['\"]?([a-zA-Z0-9_-]+)", re.IGNORECASE)
 CAPTCHA_FORM = re.compile(r"(?:^|/)(?:checkcaptcha|showcaptcha)(?:[/?#]|$)", re.IGNORECASE)
+SAVED_FROM = re.compile(r"saved from url=\([0-9]+\)(https?://\S+)", re.IGNORECASE)
+PACKAGE_UNITS = {
+    "мл": ("мл", 1), "ml": ("мл", 1), "л": ("мл", 1000), "l": ("мл", 1000),
+    "г": ("г", 1), "g": ("г", 1), "кг": ("г", 1000), "kg": ("г", 1000),
+    "шт": ("шт.", 1), "штука": ("шт.", 1), "штуки": ("шт.", 1), "штук": ("шт.", 1),
+    "pcs": ("шт.", 1),
+}
+PACKAGE_LABELS = {
+    "объем": "мл", "объем бутылки": "мл", "объем упаковки": "мл",
+    "масса нетто": "г", "вес нетто": "г", "вес": "г",
+    "количество в упаковке": "шт.", "количество штук в упаковке": "шт.",
+}
+PACKAGE_AMOUNT = re.compile(
+    rf"(?<![\w.,+−-])(?P<amount>{PRICE_TEXT.pattern})\s*(?P<unit>{'|'.join(PACKAGE_UNITS)})(?!\w)",
+    re.IGNORECASE,
+)
+PACKAGE_LABEL = re.compile(rf"(?P<label>{'|'.join(PACKAGE_LABELS)})[\s:]+(?P<value>[0-9].*)")
+PACKAGE_RANGE_OR_SET = re.compile(
+    r"\d\s*[-–—/]\s*\d|(?:[×*]|(?<![а-яёa-z])[xх])\s*\d|\d\s*(?:шт\.?\s*)?по\s+\d",
+    re.IGNORECASE,
+)
+
+
+@dataclass(frozen=True)
+class ProductPage:
+    price: Decimal
+    url: str
+    name: str
+    package: tuple[Decimal, str] | None
 
 
 def ruble_price(value, currency):
@@ -35,7 +65,12 @@ class StoreMarkup(HTMLParser):
         self.amount_text = None
         self.woocommerce_prices = set()
         self.canonical_url = ""
+        self.saved_url = ""
         self.needs_verification = False
+        self.headings = set()
+        self.labels = set()
+        self.text_tag = ""
+        self.tag_text = []
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
@@ -43,6 +78,9 @@ class StoreMarkup(HTMLParser):
             self.canonical_url = attributes.get("href") or ""
         if tag == "form" and CAPTCHA_FORM.search(attributes.get("action") or ""):
             self.needs_verification = True
+        if tag in ("h1", "label"):
+            self.text_tag = tag
+            self.tag_text = []
         if tag == "script":
             script_type = (attributes.get("type") or "").partition(";")[0].strip().lower()
             if script_type == "application/ld+json":
@@ -72,8 +110,20 @@ class StoreMarkup(HTMLParser):
             self.script.append(data)
         if self.amount_text is not None:
             self.amount_text.append(data)
+        if self.text_tag and data.strip():
+            self.tag_text.append(data)
+
+    def handle_comment(self, data):
+        if not self.saved_url and (saved := SAVED_FROM.fullmatch(data.strip())):
+            self.saved_url = saved[1]
 
     def handle_endtag(self, tag):
+        if tag == self.text_tag:
+            text = " ".join(" ".join(self.tag_text).split())
+            if text:
+                (self.headings if tag == "h1" else self.labels).add(text)
+            self.text_tag = ""
+            self.tag_text = []
         if tag == "script" and self.script is not None:
             self.scripts.append("".join(self.script))
             self.script = None
@@ -159,8 +209,63 @@ def metadata_prices(metadata):
     return set()
 
 
+def package_amount(match):
+    amount = Decimal("".join(match["amount"].split()).replace(",", "."))
+    unit, scale = PACKAGE_UNITS[match["unit"].lower()]
+    if amount > 0 and (unit != "шт." or amount == amount.to_integral_value()):
+        return (amount * scale).normalize(), unit
+    return None
+
+
+def package_labels(product, labels):
+    yield from labels
+    properties = product.get("additionalProperty", [])
+    if isinstance(properties, dict):
+        properties = [properties]
+    if not isinstance(properties, list):
+        return
+    for prop in properties:
+        if not isinstance(prop, dict) or not isinstance(prop.get("name"), str):
+            continue
+        value = prop.get("value")
+        if type(value) not in (str, int, Decimal):
+            continue
+        value = str(value).strip()
+        unit = prop.get("unitText")
+        if isinstance(unit, str) and PRICE_TEXT.fullmatch(value):
+            value = f"{value} {unit}"
+        yield f"{prop['name']} {value}"
+
+
+def find_package(name, labels):
+    if PACKAGE_RANGE_OR_SET.search(name):
+        return None
+    packages = {amount for match in PACKAGE_AMOUNT.finditer(name) if (amount := package_amount(match)) is not None}
+    if len(packages - {(Decimal(1), "шт.")}) > 1:
+        return None
+    for label in labels:
+        match = PACKAGE_LABEL.fullmatch(label.lower().replace("ё", "е"))
+        if not match:
+            continue
+        unit = PACKAGE_LABELS[match["label"]]
+        value = match["value"].strip().removesuffix(".")
+        if unit == "шт." and re.fullmatch(r"[0-9]{1,9}", value):
+            value += " шт"
+        quantity = PACKAGE_AMOUNT.fullmatch(value)
+        if quantity and (amount := package_amount(quantity)) is not None and amount[1] == unit:
+            packages.add(amount)
+
+    if any(unit == "шт." and amount > 1 for amount, unit in packages) and any(unit != "шт." for _, unit in packages):
+        return None
+    for unit in ("мл", "г", "шт."):
+        candidates = {package for package in packages if package[1] == unit}
+        if candidates:
+            return candidates.pop() if len(candidates) == 1 else None
+    return None
+
+
 def parse_price(html, content_type=""):
-    return parse_product_page(html, content_type)[0]
+    return parse_product_page(html, content_type).price
 
 
 def parse_product_page(html, content_type=""):
@@ -187,12 +292,11 @@ def parse_product_page(html, content_type=""):
             continue
 
     products = [node for node in nodes if is_product(node)]
+    product = products[0] if len(products) == 1 else {}
     prices = set()
-    product_url = None
-    if len(products) == 1:
+    if product:
         references = {node["@id"]: node for node in nodes if isinstance(node.get("@id"), str) and len(node) > 1}
-        prices = offer_prices(products[0], references)
-        product_url = products[0].get("url")
+        prices = offer_prices(product, references)
 
     prices = prices or metadata_prices(markup.metadata) or markup.woocommerce_prices
     if len(prices) > 1:
@@ -204,6 +308,11 @@ def parse_product_page(html, content_type=""):
                 "сохраните её через Ctrl+S и выберите «Из HTML»."
             )
         raise ValueError("В HTML нет цены в рублях. Загрузите сохранённую карточку через «Из HTML» или введите цену вручную.")
-    page_urls = (markup.canonical_url, product_url, *sorted(markup.metadata["og:url"]))
+    page_urls = (markup.canonical_url, product.get("url"), *sorted(markup.metadata["og:url"]), markup.saved_url)
     page_url = next((url for url in page_urls if isinstance(url, str) and url.startswith(("https://", "http://"))), "")
-    return prices.pop(), page_url
+    name = product.get("name")
+    name = " ".join(name.split()) if isinstance(name, str) else ""
+    for names in (markup.headings, markup.metadata["og:title"]):
+        if not name and len(names) == 1:
+            name = next(iter(names))
+    return ProductPage(prices.pop(), page_url, name, find_package(name, package_labels(product, markup.labels)))

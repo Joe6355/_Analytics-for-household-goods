@@ -3,7 +3,7 @@ from pathlib import Path
 from PyQt6.QtCore import QObject, QTimer, QUrl, QUrlQuery, pyqtSignal
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
-from store_page import parse_price, parse_product_page
+from store_page import parse_product_page
 
 
 MAX_HTML_BYTES = 8 * 1024 * 1024
@@ -68,15 +68,15 @@ class PriceLoader(QObject):
                 html = file.read(MAX_HTML_BYTES + 1)
             if len(html) > MAX_HTML_BYTES:
                 raise ValueError(PAGE_TOO_LARGE)
-            price, page_url = parse_product_page(html)
+            product = parse_product_page(html)
         except OSError:
             self.failed.emit("Не удалось открыть HTML-файл карточки.")
         except ValueError as error:
             self.failed.emit(str(error))
         else:
-            url = QUrl(page_url)
+            url = QUrl(product.url)
             store = url.host().removeprefix("www.") if url.scheme() in ("http", "https") else ""
-            self.loaded.emit(store, price)
+            self.loaded.emit(store, product)
 
     def check_size(self):
         if self.reply is not None and self.reply.bytesAvailable() > MAX_HTML_BYTES:
@@ -108,11 +108,11 @@ class PriceLoader(QObject):
             if len(html) > MAX_HTML_BYTES:
                 raise ValueError(PAGE_TOO_LARGE)
             content_type = bytes(reply.rawHeader(b"Content-Type")).decode("latin-1")
-            price = parse_price(html, content_type)
+            product = parse_product_page(html, content_type)
             store = reply.url().host().removeprefix("www.")
         except ValueError as error:
             self.failed.emit(str(error))
         else:
-            self.loaded.emit(store, price)
+            self.loaded.emit(store, product)
         finally:
             reply.deleteLater()

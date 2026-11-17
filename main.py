@@ -4,13 +4,14 @@ import sys
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
+from html import escape
 from pathlib import Path
 from unicodedata import normalize
 
 from PyQt6 import uic
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox, QTableWidgetItem
+from PyQt6.QtWidgets import QApplication, QFileDialog, QHeaderView, QMainWindow, QMessageBox, QTableWidgetItem
 
 from account_client import AccountController
 from price_loader import PriceLoader
@@ -102,6 +103,7 @@ class Offer:
     store: str
     amount: Decimal
     price: Decimal
+    product: str = ""
 
     @property
     def price_per_unit(self):
@@ -128,10 +130,11 @@ class HouseholdGoodsWindow(QMainWindow):
         self.clear_forecast()
 
         self.offers = []
+        self.offer_name = ""
         self.pricesProduct.hide()
         self.price_loader = PriceLoader(self)
         self.price_loader.started.connect(lambda: self.set_price_loading(True))
-        self.price_loader.loaded.connect(self.apply_loaded_price)
+        self.price_loader.loaded.connect(self.apply_loaded_product)
         self.price_loader.failed.connect(self.show_price_error)
         self.productLinkInput.returnPressed.connect(self.load_price)
         self.loadPriceButton.clicked.connect(self.load_price)
@@ -141,6 +144,8 @@ class HouseholdGoodsWindow(QMainWindow):
         self.removeOfferButton.clicked.connect(self.remove_offer)
         self.offersTable.itemSelectionChanged.connect(self.update_remove_button)
         self.offerUnit.currentTextChanged.connect(self.update_offers_table)
+        self.offersTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.offersTable.setColumnWidth(1, 134)
         self.update_offers_table()
 
         self.characteristicsProduct.setTextFormat(Qt.TextFormat.PlainText)
@@ -269,30 +274,50 @@ class HouseholdGoodsWindow(QMainWindow):
 
     def set_price_loading(self, loading):
         for field in (self.productLinkInput, self.loadPriceButton, self.loadPriceFileButton, self.addOfferButton,
-                      self.storeInput, self.offerPriceInput):
+                      self.storeInput, self.offerPackageInput, self.offerPriceInput):
             field.setEnabled(not loading)
         if loading:
-            self.statusBar().showMessage("Загружаю цену…")
+            self.statusBar().showMessage("Загружаю карточку…")
         else:
             self.statusBar().clearMessage()
 
-    def apply_loaded_price(self, store, price):
+    def apply_loaded_product(self, store, product):
         self.set_price_loading(False)
-        if store:
-            self.storeInput.setText(store)
-        self.offerPriceInput.setText(format(price, "f").replace(".", ","))
-        self.statusBar().showMessage("Цена загружена. Проверьте магазин и количество в упаковке.", 8000)
-        store_name = self.storeInput.text().strip()
+        amount, unit = product.package or (None, "")
+        current_unit = self.offerUnit.currentText()
+        if unit and self.offers and unit != current_unit:
+            self.show_price_error(
+                f"В карточке указаны {unit}, а в таблице сравниваются {current_unit}. "
+                "Удалите текущие предложения, чтобы сменить единицу сравнения."
+            )
+            return
+
+        self.offer_name = product.name
+        amount_text = format(amount, "f").replace(".", ",") if amount is not None else ""
+        price_text = format(product.price, "f").replace(".", ",")
+        self.storeInput.setText(store)
+        self.offerPackageInput.setText(amount_text)
+        self.offerPriceInput.setText(price_text)
+        if unit:
+            self.offerUnit.setCurrentText(unit)
+        package_text = f"{amount_text} {unit}" if unit else "упаковку"
+        details = f"{price_text} ₽ за {package_text}."
+        self.account.record("Загрузка цены", product.name, f"{store} — {details}" if store else details)
+
+        missing = [field for value, field in ((store, "магазин"), (unit, "фасовку")) if not value]
+        if missing:
+            self.statusBar().showMessage(f"Укажите {' и '.join(missing)} и нажмите «Добавить».", 10000)
+            focus = self.offerPackageInput if store else self.storeInput
+        else:
+            self.add_offer()
+            self.statusBar().showMessage("Предложение добавлено.", 6000)
+            focus = self.productLinkInput
         if self.sectionStack.currentWidget() is self.pricesPage:
-            (self.offerPackageInput if store_name else self.storeInput).setFocus()
-        details = f"{self.offerPriceInput.text()} ₽ за упаковку."
-        if store_name:
-            details = f"{store_name} — {details}"
-        self.account.record("Загрузка цены", "", details)
+            focus.setFocus()
 
     def show_price_error(self, message):
         self.set_price_loading(False)
-        QMessageBox.warning(self, "Загрузка цены", message)
+        QMessageBox.warning(self, "Загрузка карточки", message)
 
     def add_offer(self):
         store = self.storeInput.text().strip()
@@ -304,11 +329,12 @@ class HouseholdGoodsWindow(QMainWindow):
             QMessageBox.warning(self, "Проверьте данные", str(error))
             return
 
-        self.offers.append(Offer(store, amount, price))
+        self.offers.append(Offer(store, amount, price, self.offer_name))
         self.offers.sort(key=lambda offer: offer.price_per_unit)
         self.update_offers_table()
         if len(self.offers) >= 2:
-            self.account.record("Сравнение цен", "", self.bestPriceLabel.text())
+            self.account.record("Сравнение цен", self.offer_name, self.bestPriceLabel.text())
+        self.offer_name = ""
         self.productLinkInput.clear()
         self.storeInput.clear()
         self.offerPackageInput.clear()
@@ -332,17 +358,19 @@ class HouseholdGoodsWindow(QMainWindow):
         self.offerUnit.setEnabled(not self.offers)
 
         table = self.offersTable
-        table.horizontalHeaderItem(3).setText(f"За {quantity}, ₽")
+        table.horizontalHeaderItem(4).setText(f"За {quantity}, ₽")
         table.setRowCount(0)
         table.setRowCount(len(self.offers))
         for row, offer in enumerate(self.offers):
             amount = format(offer.amount, "f").replace(".", ",")
             price = format_number(Fraction(offer.price), 2)
             normalized_price = format_number(offer.price_per_unit * scale, 2)
-            for column, text in enumerate((offer.store, f"{amount} {unit}", price, normalized_price)):
+            for column, text in enumerate((offer.product or "—", offer.store, f"{amount} {unit}", price, normalized_price)):
                 item = QTableWidgetItem(text)
-                if column > 0:
+                if column >= 2:
                     item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                else:
+                    item.setToolTip(f"<qt>{escape(text)}</qt>")
                 table.setItem(row, column, item)
         self.update_remove_button()
 
