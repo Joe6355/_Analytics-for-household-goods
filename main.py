@@ -65,11 +65,22 @@ def calculate_usage(package_amount, package_price, samples):
     return average, cost_per_use, full_uses
 
 
-def format_number(value, places):
+def format_number(value, places, *, trim=False):
     scale = 10 ** places
     rounded = int(value * scale + Fraction(1, 2))
     whole, remainder = divmod(rounded, scale)
-    return f"{Decimal(whole):f},{remainder:0{places}d}"
+    integer_text = f"{Decimal(whole):f}"
+    if places == 0:
+        return integer_text
+    fraction = f"{remainder:0{places}d}"
+    if trim:
+        fraction = fraction.rstrip("0")
+    return f"{integer_text},{fraction}" if fraction else integer_text
+
+
+def format_quantity(value):
+    text = format_number(value, 3, trim=True)
+    return "< 0,001" if text == "0" and value > 0 else text
 
 
 @dataclass(frozen=True)
@@ -91,8 +102,16 @@ class HouseholdGoodsWindow(QMainWindow):
         self.calculateUsageButton.clicked.connect(self.check_usage)
         for field in (self.productInput, self.packageInput, self.packagePriceInput, self.measurementsInput):
             field.textChanged.connect(self.clear_usage_result)
+            field.textChanged.connect(self.clear_forecast)
         self.packageUnit.currentTextChanged.connect(self.set_usage_unit)
+        self.packageUnit.currentTextChanged.connect(self.clear_forecast)
         self.set_usage_unit(self.packageUnit.currentText())
+
+        self.forecastProduct.setTextFormat(Qt.TextFormat.PlainText)
+        self.calculateForecastButton.clicked.connect(self.show_forecast)
+        self.frequencyInput.valueChanged.connect(self.clear_forecast)
+        self.frequencyPeriod.currentIndexChanged.connect(self.clear_forecast)
+        self.clear_forecast()
 
         self.offers = []
         self.pricesProduct.hide()
@@ -114,7 +133,7 @@ class HouseholdGoodsWindow(QMainWindow):
 
     def update_demo_note(self):
         page = self.sectionStack.currentWidget()
-        self.demoNote.setVisible(page not in (self.usagePage, self.pricesPage))
+        self.demoNote.setVisible(page not in (self.usagePage, self.pricesPage, self.forecastPage))
 
     def clear_usage_result(self):
         self.usageCostValue.setText("—")
@@ -126,20 +145,21 @@ class HouseholdGoodsWindow(QMainWindow):
         self.measurementsLabel.setText(f"<b>Замеры за одно применение, {unit}</b>")
         self.clear_usage_result()
 
+    def read_usage_fields(self):
+        return validate_usage(
+            product=self.productInput.text(),
+            amount=self.packageInput.text(),
+            price=self.packagePriceInput.text(),
+            measurements=self.measurementsInput.toPlainText(),
+        )
+
     def check_usage(self):
         self.clear_usage_result()
         self.calculateUsageButton.setEnabled(False)
         try:
-            amount, price, samples = validate_usage(
-                product=self.productInput.text(),
-                amount=self.packageInput.text(),
-                price=self.packagePriceInput.text(),
-                measurements=self.measurementsInput.toPlainText(),
-            )
+            amount, price, samples = self.read_usage_fields()
             average, cost_per_use, full_uses = calculate_usage(amount, price, samples)
-            average_text = format_number(average, 3).rstrip("0").rstrip(",")
-            if average_text == "0":
-                average_text = "< 0,001"
+            average_text = format_quantity(average)
             cost_text = format_number(cost_per_use, 2)
             full_uses_text = str(full_uses)
         except ValueError as error:
@@ -156,6 +176,49 @@ class HouseholdGoodsWindow(QMainWindow):
             self.statusBar().showMessage("Расход рассчитан.", 3000)
         finally:
             self.calculateUsageButton.setEnabled(True)
+
+    def set_forecast_rows(self, rows):
+        for row, values in enumerate(rows):
+            for column, text in enumerate(values, start=1):
+                self.forecastTable.item(row, column).setText(text)
+
+    def clear_forecast(self):
+        self.forecastProduct.setText("Данные из вкладки «Расход»")
+        self.durationValue.setText("—")
+        self.set_forecast_rows((("—", "—", "—"), ("—", "—", "—")))
+
+    def show_forecast(self):
+        try:
+            amount, price, samples = self.read_usage_fields()
+        except ValueError as error:
+            QMessageBox.warning(self, "Проверьте данные на вкладке «Расход»", str(error))
+            return
+        except InvalidOperation:
+            QMessageBox.warning(self, "Ошибка ввода", "Проверьте числа на вкладке «Расход».")
+            return
+
+        average, cost_per_use, full_uses = calculate_usage(amount, price, samples)
+        annual_uses = self.frequencyInput.value()
+        if self.frequencyPeriod.currentText() == "в месяц":
+            annual_uses *= 12
+        monthly_uses = Fraction(annual_uses, 12)
+        days = Fraction(365 * full_uses, annual_uses)
+        days_text = format_quantity(days) if days < 1 else format_number(days, 0)
+
+        unit = self.packageUnit.currentText()
+        rows = []
+        for uses in (monthly_uses, annual_uses):
+            rows.append((
+                format_number(uses, 2, trim=True),
+                f"{format_quantity(average * uses)} {unit}",
+                format_number(cost_per_use * uses, 2),
+            ))
+
+        product = self.productInput.text().strip()
+        package = format(amount, "f").replace(".", ",")
+        self.forecastProduct.setText(f"{product} · {package} {unit}")
+        self.durationValue.setText(f"{days_text} дн.")
+        self.set_forecast_rows(rows)
 
     def load_price(self):
         self.price_loader.load(self.productLinkInput.text())
