@@ -24,7 +24,7 @@ class AccountController(QObject):
 
         window.accountStatus.setTextFormat(Qt.TextFormat.PlainText)
         window.historyHint.setTextFormat(Qt.TextFormat.PlainText)
-        window.signInTitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        window.signInTitle.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         window.signInButton.clicked.connect(self.sign_in_or_out)
         window.registerButton.clicked.connect(lambda: self.authenticate("/register"))
         window.passwordInput.returnPressed.connect(self.sign_in_or_out)

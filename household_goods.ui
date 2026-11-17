@@ -339,6 +339,9 @@ QHeaderView::section {
        </property>
        <item>
         <spacer name="workspaceLeftSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
          <property name="sizeType">
           <enum>QSizePolicy::Fixed</enum>
          </property>
@@ -379,9 +382,9 @@ QHeaderView::section {
             <number>0</number>
            </property>
            <widget class="QWidget" name="usagePage">
-            <layout class="QVBoxLayout" name="usagePageLayout">
+            <layout class="QVBoxLayout" name="usagePageLayout" stretch="0,0,0,1">
              <property name="spacing">
-              <number>13</number>
+              <number>18</number>
              </property>
              <property name="leftMargin">
               <number>0</number>
@@ -421,7 +424,7 @@ QHeaderView::section {
                 <number>24</number>
                </property>
                <item>
-                <layout class="QVBoxLayout" name="usageInputs" stretch="0,0,0,0,0,1">
+                <layout class="QVBoxLayout" name="usageInputs" stretch="0,0,0,1,0">
                  <property name="spacing">
                   <number>10</number>
                  </property>
@@ -458,6 +461,12 @@ QHeaderView::section {
                    </item>
                    <item row="0" column="1">
                     <widget class="QLineEdit" name="productInput">
+                     <property name="minimumSize">
+                      <size>
+                       <width>240</width>
+                       <height>0</height>
+                      </size>
+                     </property>
                      <property name="text">
                       <string>Гель для посуды</string>
                      </property>
@@ -549,7 +558,7 @@ QHeaderView::section {
                    <property name="maximumSize">
                     <size>
                      <width>16777215</width>
-                     <height>136</height>
+                     <height>176</height>
                     </size>
                    </property>
                    <property name="tabChangesFocus">
@@ -575,31 +584,12 @@ QHeaderView::section {
                    </property>
                   </widget>
                  </item>
-                 <item>
-                  <spacer name="usageInputsSpacer">
-                   <property name="sizeType">
-                    <enum>QSizePolicy::Fixed</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>0</width>
-                     <height>8</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
                 </layout>
                </item>
                <item>
-                <layout class="QVBoxLayout" name="usageResultsColumn" stretch="0,1">
+                <layout class="QVBoxLayout" name="usageResultsColumn">
                  <item>
                   <widget class="QFrame" name="usageResults">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
                    <property name="role" stdset="0">
                     <string>sheet</string>
                    </property>
@@ -622,7 +612,7 @@ QHeaderView::section {
                     <item>
                      <widget class="QLabel" name="usageResultTitle">
                       <property name="text">
-                       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;Результат расчёта&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:16pt;&quot;&gt;Результат расчёта&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                       </property>
                       <property name="role" stdset="0">
                        <string>sectionTitle</string>
@@ -632,7 +622,7 @@ QHeaderView::section {
                     <item>
                      <widget class="QLabel" name="usageCostLabel">
                       <property name="text">
-                       <string>Стоимость одного применения</string>
+                       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;Стоимость одного применения&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                       </property>
                       <property name="wordWrap">
                        <bool>true</bool>
@@ -660,7 +650,7 @@ QHeaderView::section {
                      </widget>
                     </item>
                     <item>
-                     <layout class="QGridLayout" name="usageMetrics" columnstretch="3,2">
+                     <layout class="QGridLayout" name="usageMetrics" columnstretch="1,0">
                       <property name="horizontalSpacing">
                        <number>8</number>
                       </property>
@@ -670,7 +660,7 @@ QHeaderView::section {
                       <item row="0" column="0">
                        <widget class="QLabel" name="averageUsageLabel">
                         <property name="text">
-                         <string>Средний расход</string>
+                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Средний расход&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                         </property>
                         <property name="wordWrap">
                          <bool>true</bool>
@@ -682,6 +672,9 @@ QHeaderView::section {
                         <property name="text">
                          <string>9 мл</string>
                         </property>
+                        <property name="alignment">
+                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                        </property>
                         <property name="role" stdset="0">
                          <string>figure</string>
                         </property>
@@ -690,7 +683,7 @@ QHeaderView::section {
                       <item row="1" column="0">
                        <widget class="QLabel" name="fullUsesLabel">
                         <property name="text">
-                         <string>Полных применений из упаковки</string>
+                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Применений из упаковки&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                         </property>
                         <property name="wordWrap">
                          <bool>true</bool>
@@ -702,6 +695,61 @@ QHeaderView::section {
                         <property name="text">
                          <string>55</string>
                         </property>
+                        <property name="alignment">
+                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                        </property>
+                        <property name="role" stdset="0">
+                         <string>figure</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item row="2" column="0">
+                       <widget class="QLabel" name="sampleCountLabel">
+                        <property name="text">
+                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Количество замеров&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        </property>
+                        <property name="wordWrap">
+                         <bool>true</bool>
+                        </property>
+                       </widget>
+                      </item>
+                      <item row="2" column="1">
+                       <widget class="QLabel" name="sampleCountValue">
+                        <property name="text">
+                         <string>—</string>
+                        </property>
+                        <property name="textFormat">
+                         <enum>Qt::PlainText</enum>
+                        </property>
+                        <property name="alignment">
+                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                        </property>
+                        <property name="role" stdset="0">
+                         <string>figure</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item row="3" column="0">
+                       <widget class="QLabel" name="sampleRangeLabel">
+                        <property name="text">
+                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Диапазон расхода&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        </property>
+                        <property name="wordWrap">
+                         <bool>true</bool>
+                        </property>
+                       </widget>
+                      </item>
+                      <item row="3" column="1">
+                       <widget class="QLabel" name="sampleRangeValue">
+                        <property name="text">
+                         <string>—</string>
+                        </property>
+                        <property name="textFormat">
+                         <enum>Qt::PlainText</enum>
+                        </property>
+                        <property name="alignment">
+                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                        </property>
                         <property name="role" stdset="0">
                          <string>figure</string>
                         </property>
@@ -712,22 +760,25 @@ QHeaderView::section {
                    </layout>
                   </widget>
                  </item>
-                 <item>
-                  <spacer name="usageResultsBottomSpacer">
-                   <property name="sizeType">
-                    <enum>QSizePolicy::Fixed</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>0</width>
-                     <height>0</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
                 </layout>
                </item>
               </layout>
+             </item>
+             <item>
+              <spacer name="usagePageBottomSpacer">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeType">
+                <enum>QSizePolicy::Expanding</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>0</width>
+                 <height>0</height>
+                </size>
+               </property>
+              </spacer>
              </item>
             </layout>
            </widget>
@@ -803,11 +854,11 @@ QHeaderView::section {
                </item>
                <item>
                 <widget class="QPushButton" name="loadPriceFileButton">
-                 <property name="text">
-                  <string>Из HTML</string>
-                 </property>
                  <property name="toolTip">
                   <string>Добавить предложение из сохранённой карточки товара</string>
+                 </property>
+                 <property name="text">
+                  <string>Из HTML</string>
                  </property>
                 </widget>
                </item>
@@ -896,9 +947,6 @@ QHeaderView::section {
                <property name="accessibleName">
                 <string>Сравнение предложений</string>
                </property>
-               <property name="wordWrap">
-                <bool>false</bool>
-               </property>
                <property name="editTriggers">
                 <set>QAbstractItemView::NoEditTriggers</set>
                </property>
@@ -910,6 +958,9 @@ QHeaderView::section {
                </property>
                <property name="selectionBehavior">
                 <enum>QAbstractItemView::SelectRows</enum>
+               </property>
+               <property name="wordWrap">
+                <bool>false</bool>
                </property>
                <attribute name="horizontalHeaderDefaultSectionSize">
                 <number>104</number>
@@ -1154,7 +1205,7 @@ QHeaderView::section {
               </widget>
              </item>
              <item>
-              <layout class="QHBoxLayout" name="frequencyFields">
+              <layout class="QHBoxLayout" name="frequencyFields" stretch="0,0,0,0,1">
                <property name="spacing">
                 <number>9</number>
                </property>
@@ -1170,6 +1221,12 @@ QHeaderView::section {
                </item>
                <item>
                 <widget class="QSpinBox" name="frequencyInput">
+                 <property name="minimumSize">
+                  <size>
+                   <width>86</width>
+                   <height>27</height>
+                  </size>
+                 </property>
                  <property name="minimum">
                   <number>1</number>
                  </property>
@@ -1183,6 +1240,12 @@ QHeaderView::section {
                </item>
                <item>
                 <widget class="QComboBox" name="frequencyPeriod">
+                 <property name="minimumSize">
+                  <size>
+                   <width>112</width>
+                   <height>27</height>
+                  </size>
+                 </property>
                  <property name="accessibleName">
                   <string>Период</string>
                  </property>
@@ -1210,8 +1273,11 @@ QHeaderView::section {
                </item>
                <item>
                 <spacer name="forecastFieldsSpacer">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
                  <property name="sizeType">
-                  <enum>QSizePolicy::Fixed</enum>
+                  <enum>QSizePolicy::Expanding</enum>
                  </property>
                  <property name="sizeHint" stdset="0">
                   <size>
@@ -1223,63 +1289,146 @@ QHeaderView::section {
                </item>
               </layout>
              </item>
-             <item alignment="Qt::AlignLeft">
-              <widget class="QFrame" name="durationSheet">
-               <property name="minimumSize">
-                <size>
-                 <width>420</width>
-                 <height>0</height>
-                </size>
+             <item>
+              <layout class="QHBoxLayout" name="forecastSummary" stretch="1,1">
+               <property name="spacing">
+                <number>20</number>
                </property>
-               <property name="role" stdset="0">
-                <string>sheet</string>
-               </property>
-               <layout class="QHBoxLayout" name="durationLayout" stretch="0,0">
-                <property name="leftMargin">
-                 <number>14</number>
-                </property>
-                <property name="topMargin">
-                 <number>10</number>
-                </property>
-                <property name="rightMargin">
-                 <number>14</number>
-                </property>
-                <property name="bottomMargin">
-                 <number>10</number>
-                </property>
-                <item>
-                 <widget class="QLabel" name="durationLabel">
-                  <property name="text">
-                   <string>Упаковки хватит примерно на</string>
+               <item>
+                <widget class="QFrame" name="durationSheet">
+                 <property name="minimumSize">
+                  <size>
+                   <width>0</width>
+                   <height>110</height>
+                  </size>
+                 </property>
+                 <property name="role" stdset="0">
+                  <string>sheet</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="durationLayout">
+                  <property name="spacing">
+                   <number>10</number>
                   </property>
-                  <property name="wordWrap">
-                   <bool>true</bool>
+                  <property name="leftMargin">
+                   <number>14</number>
                   </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QLabel" name="durationValue">
-                  <property name="text">
-                   <string>105 дней</string>
+                  <property name="topMargin">
+                   <number>10</number>
                   </property>
-                  <property name="role" stdset="0">
-                   <string>featuredFigure</string>
+                  <property name="rightMargin">
+                   <number>14</number>
                   </property>
-                 </widget>
-                </item>
-               </layout>
-              </widget>
+                  <property name="bottomMargin">
+                   <number>16</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="durationLabel">
+                    <property name="text">
+                     <string>Срок использования упаковки</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="role" stdset="0">
+                     <string>sectionTitle</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="durationValue">
+                    <property name="text">
+                     <string>—</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                    <property name="role" stdset="0">
+                     <string>featuredFigure</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="forecastHint">
+                    <property name="text">
+                     <string/>
+                    </property>
+                    <property name="textFormat">
+                     <enum>Qt::PlainText</enum>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="role" stdset="0">
+                     <string>muted</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="forecastDurationCaption">
+                    <property name="text">
+                     <string>На сколько хватит упаковки</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <widget class="QFrame" name="forecastGraphSheet">
+                 <property name="role" stdset="0">
+                  <string>sheet</string>
+                 </property>
+                 <layout class="QVBoxLayout" name="forecastGraphLayout">
+                  <property name="spacing">
+                   <number>6</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="forecastGraphTitle">
+                    <property name="text">
+                     <string>Остаток в упаковке · эскиз</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                    <property name="role" stdset="0">
+                     <string>sectionTitle</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="forecastGraphPreview">
+                    <property name="accessibleName">
+                     <string>Эскиз графика уменьшения остатка</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+              </layout>
              </item>
              <item>
               <widget class="QTableWidget" name="forecastTable">
-               <property name="maximumSize">
-                <size>
-                 <width>16777215</width>
-                 <height>150</height>
-                </size>
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
                </property>
                <property name="accessibleName">
-                <string>Прогноз на месяц и год</string>
+                <string>Прогноз по периодам</string>
                </property>
                <property name="editTriggers">
                 <set>QAbstractItemView::NoEditTriggers</set>
@@ -1297,14 +1446,15 @@ QHeaderView::section {
                 <number>144</number>
                </attribute>
                <attribute name="horizontalHeaderStretchLastSection">
-                <bool>true</bool>
+                <bool>false</bool>
                </attribute>
                <attribute name="verticalHeaderVisible">
                 <bool>false</bool>
                </attribute>
                <attribute name="verticalHeaderDefaultSectionSize">
-                <number>34</number>
+                <number>44</number>
                </attribute>
+               <row/>
                <row/>
                <row/>
                <column>
@@ -1341,7 +1491,7 @@ QHeaderView::section {
                </column>
                <item row="0" column="0">
                 <property name="text">
-                 <string>Месяц</string>
+                 <string>Неделя</string>
                 </property>
                </item>
                <item row="0" column="1">
@@ -1370,12 +1520,12 @@ QHeaderView::section {
                </item>
                <item row="1" column="0">
                 <property name="text">
-                 <string>Год</string>
+                 <string>Месяц</string>
                 </property>
                </item>
                <item row="1" column="1">
                 <property name="text">
-                 <string>192</string>
+                 <string>16</string>
                 </property>
                 <property name="textAlignment">
                  <set>AlignTrailing|AlignVCenter</set>
@@ -1383,13 +1533,42 @@ QHeaderView::section {
                </item>
                <item row="1" column="2">
                 <property name="text">
-                 <string>1 728 мл</string>
+                 <string>144 мл</string>
                 </property>
                 <property name="textAlignment">
                  <set>AlignTrailing|AlignVCenter</set>
                 </property>
                </item>
                <item row="1" column="3">
+                <property name="text">
+                 <string>100,51</string>
+                </property>
+                <property name="textAlignment">
+                 <set>AlignTrailing|AlignVCenter</set>
+                </property>
+               </item>
+               <item row="2" column="0">
+                <property name="text">
+                 <string>Год</string>
+                </property>
+               </item>
+               <item row="2" column="1">
+                <property name="text">
+                 <string>192</string>
+                </property>
+                <property name="textAlignment">
+                 <set>AlignTrailing|AlignVCenter</set>
+                </property>
+               </item>
+               <item row="2" column="2">
+                <property name="text">
+                 <string>1 728 мл</string>
+                </property>
+                <property name="textAlignment">
+                 <set>AlignTrailing|AlignVCenter</set>
+                </property>
+               </item>
+               <item row="2" column="3">
                 <property name="text">
                  <string>1 206,14</string>
                 </property>
@@ -1401,8 +1580,11 @@ QHeaderView::section {
              </item>
              <item>
               <spacer name="forecastSpacer">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
                <property name="sizeType">
-                <enum>QSizePolicy::Fixed</enum>
+                <enum>QSizePolicy::Expanding</enum>
                </property>
                <property name="sizeHint" stdset="0">
                 <size>
@@ -1415,7 +1597,7 @@ QHeaderView::section {
             </layout>
            </widget>
            <widget class="QWidget" name="characteristicsPage">
-            <layout class="QVBoxLayout" name="characteristicsPageLayout">
+            <layout class="QVBoxLayout" name="characteristicsPageLayout" stretch="0,0,0,1">
              <property name="spacing">
               <number>13</number>
              </property>
@@ -1471,9 +1653,9 @@ QHeaderView::section {
                 <number>24</number>
                </property>
                <item>
-                <layout class="QVBoxLayout" name="compositionLayout" stretch="0,0,0,0,0,0,0,1">
+                <layout class="QVBoxLayout" name="compositionLayout">
                  <property name="spacing">
-                  <number>10</number>
+                  <number>8</number>
                  </property>
                  <item>
                   <widget class="QLabel" name="labelTitle">
@@ -1535,6 +1717,22 @@ QHeaderView::section {
                   </widget>
                  </item>
                  <item>
+                  <spacer name="compositionSectionGap">
+                   <property name="orientation">
+                    <enum>Qt::Vertical</enum>
+                   </property>
+                   <property name="sizeType">
+                    <enum>QSizePolicy::Fixed</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>0</width>
+                     <height>10</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                 <item>
                   <widget class="QLabel" name="compositionLabel">
                    <property name="text">
                     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt; font-weight:600;&quot;&gt;Состав&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -1546,9 +1744,6 @@ QHeaderView::section {
                  </item>
                  <item>
                   <widget class="QPlainTextEdit" name="compositionInput">
-                   <property name="placeholderText">
-                    <string>По одному компоненту на строку или через точку с запятой</string>
-                   </property>
                    <property name="minimumSize">
                     <size>
                      <width>0</width>
@@ -1569,6 +1764,9 @@ QHeaderView::section {
     Анионные ПАВ
     Неионогенные ПАВ
     Отдушка</string>
+                   </property>
+                   <property name="placeholderText">
+                    <string>По одному компоненту на строку или через точку с запятой</string>
                    </property>
                   </widget>
                  </item>
@@ -1595,35 +1793,16 @@ QHeaderView::section {
                    </property>
                   </widget>
                  </item>
-                 <item>
-                  <spacer name="compositionSpacer">
-                   <property name="sizeType">
-                    <enum>QSizePolicy::Fixed</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>0</width>
-                     <height>8</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
                 </layout>
                </item>
                <item>
-                <layout class="QVBoxLayout" name="effectivenessSheetColumn" stretch="0,1">
+                <layout class="QVBoxLayout" name="effectivenessSheetColumn">
                  <item>
                   <widget class="QFrame" name="effectivenessSheet">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
                    <property name="role" stdset="0">
                     <string>sheet</string>
                    </property>
-                   <layout class="QVBoxLayout" name="effectivenessLayout">
+                   <layout class="QVBoxLayout" name="effectivenessLayout" stretch="0,0,0,0,0,0">
                     <property name="spacing">
                      <number>11</number>
                     </property>
@@ -1641,6 +1820,9 @@ QHeaderView::section {
                     </property>
                     <item>
                      <widget class="QLabel" name="effectivenessTitle">
+                      <property name="styleSheet">
+                       <string notr="true">font-size: 21px;</string>
+                      </property>
                       <property name="text">
                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;Эффективность&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                       </property>
@@ -1650,9 +1832,22 @@ QHeaderView::section {
                      </widget>
                     </item>
                     <item>
+                     <widget class="QFrame" name="effectivenessRule">
+                      <property name="frameShape">
+                       <enum>QFrame::NoFrame</enum>
+                      </property>
+                      <property name="role" stdset="0">
+                       <string>rule</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
                      <layout class="QFormLayout" name="effectivenessFields">
                       <property name="fieldGrowthPolicy">
                        <enum>QFormLayout::FieldsStayAtSizeHint</enum>
+                      </property>
+                      <property name="rowWrapPolicy">
+                       <enum>QFormLayout::WrapLongRows</enum>
                       </property>
                       <property name="horizontalSpacing">
                        <number>12</number>
@@ -1662,6 +1857,9 @@ QHeaderView::section {
                       </property>
                       <item row="0" column="0">
                        <widget class="QLabel" name="testCountLabel">
+                        <property name="styleSheet">
+                         <string notr="true">font-size: 17px;</string>
+                        </property>
                         <property name="text">
                          <string>Испытаний</string>
                         </property>
@@ -1672,6 +1870,15 @@ QHeaderView::section {
                       </item>
                       <item row="0" column="1">
                        <widget class="QSpinBox" name="testCountInput">
+                        <property name="minimumSize">
+                         <size>
+                          <width>140</width>
+                          <height>27</height>
+                         </size>
+                        </property>
+                        <property name="styleSheet">
+                         <string notr="true">font-size: 16px;</string>
+                        </property>
                         <property name="minimum">
                          <number>0</number>
                         </property>
@@ -1685,6 +1892,9 @@ QHeaderView::section {
                       </item>
                       <item row="1" column="0">
                        <widget class="QLabel" name="successCountLabel">
+                        <property name="styleSheet">
+                         <string notr="true">font-size: 17px;</string>
+                        </property>
                         <property name="text">
                          <string>Успешных</string>
                         </property>
@@ -1695,6 +1905,15 @@ QHeaderView::section {
                       </item>
                       <item row="1" column="1">
                        <widget class="QSpinBox" name="successCountInput">
+                        <property name="minimumSize">
+                         <size>
+                          <width>140</width>
+                          <height>27</height>
+                         </size>
+                        </property>
+                        <property name="styleSheet">
+                         <string notr="true">font-size: 16px;</string>
+                        </property>
                         <property name="minimum">
                          <number>0</number>
                         </property>
@@ -1708,30 +1927,29 @@ QHeaderView::section {
                       </item>
                      </layout>
                     </item>
-                    <item>
-                     <widget class="QFrame" name="effectivenessRule">
-                      <property name="frameShape">
-                       <enum>QFrame::NoFrame</enum>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>rule</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
+                    <item alignment="Qt::AlignBottom">
                      <widget class="QLabel" name="effectivenessLabel">
                       <property name="text">
-                       <string>Доля успешных применений</string>
+                       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;Доля успешных применений&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignCenter</set>
                       </property>
                       <property name="wordWrap">
                        <bool>true</bool>
                       </property>
                      </widget>
                     </item>
-                    <item>
+                    <item alignment="Qt::AlignTop">
                      <widget class="QLabel" name="effectivenessValue">
+                      <property name="styleSheet">
+                       <string notr="true">font-size: 36px;</string>
+                      </property>
                       <property name="text">
                        <string>80 %</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignCenter</set>
                       </property>
                       <property name="role" stdset="0">
                        <string>featuredFigure</string>
@@ -1751,22 +1969,25 @@ QHeaderView::section {
                    </layout>
                   </widget>
                  </item>
-                 <item>
-                  <spacer name="effectivenessSheetBottomSpacer">
-                   <property name="sizeType">
-                    <enum>QSizePolicy::Fixed</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>0</width>
-                     <height>0</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
                 </layout>
                </item>
               </layout>
+             </item>
+             <item>
+              <spacer name="compositionSpacer">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeType">
+                <enum>QSizePolicy::Expanding</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>0</width>
+                 <height>8</height>
+                </size>
+               </property>
+              </spacer>
              </item>
             </layout>
            </widget>
@@ -1813,94 +2034,121 @@ QHeaderView::section {
                 <number>23</number>
                </property>
                <item>
-                <layout class="QVBoxLayout" name="signInLayout" stretch="0,0,0,0,0,0,0,1">
+                <layout class="QVBoxLayout" name="signInColumn" stretch="0,1">
                  <property name="spacing">
-                  <number>9</number>
+                  <number>0</number>
                  </property>
                  <item>
-                  <widget class="QLabel" name="signInTitle">
-                   <property name="text">
-                    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;Вход&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                   </property>
+                  <widget class="QFrame" name="signInCard">
                    <property name="role" stdset="0">
-                    <string>sectionTitle</string>
+                    <string>sheet</string>
                    </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QLabel" name="emailLabel">
-                   <property name="text">
-                    <string>Электронная почта</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>emailInput</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QLineEdit" name="emailInput">
-                   <property name="placeholderText">
-                    <string>name@example.ru</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QLabel" name="passwordLabel">
-                   <property name="text">
-                    <string>Пароль</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>passwordInput</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QLineEdit" name="passwordInput">
-                   <property name="echoMode">
-                    <enum>QLineEdit::Password</enum>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <layout class="QHBoxLayout" name="accountButtons">
-                   <item>
-                    <widget class="QPushButton" name="signInButton">
-                     <property name="text">
-                      <string>Войти</string>
-                     </property>
-                     <property name="role" stdset="0">
-                      <string>primary</string>
-                     </property>
-                    </widget>
-                   </item>
-                   <item>
-                    <widget class="QPushButton" name="registerButton">
-                     <property name="text">
-                      <string>Регистрация</string>
-                     </property>
-                    </widget>
-                   </item>
-                  </layout>
-                 </item>
-                 <item>
-                  <widget class="QLabel" name="accountStatus">
-                   <property name="wordWrap">
-                    <bool>true</bool>
-                   </property>
-                   <property name="role" stdset="0">
-                    <string>muted</string>
-                   </property>
+                   <layout class="QVBoxLayout" name="signInLayout">
+                    <property name="spacing">
+                     <number>9</number>
+                    </property>
+                    <property name="leftMargin">
+                     <number>16</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>16</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>16</number>
+                    </property>
+                    <property name="bottomMargin">
+                     <number>16</number>
+                    </property>
+                    <item>
+                     <widget class="QLabel" name="signInTitle">
+                      <property name="text">
+                       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:18pt;&quot;&gt;Вход&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                      </property>
+                      <property name="role" stdset="0">
+                       <string>sectionTitle</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="emailLabel">
+                      <property name="text">
+                       <string>Электронная почта</string>
+                      </property>
+                      <property name="buddy">
+                       <cstring>emailInput</cstring>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLineEdit" name="emailInput">
+                      <property name="placeholderText">
+                       <string>name@example.ru</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="passwordLabel">
+                      <property name="text">
+                       <string>Пароль</string>
+                      </property>
+                      <property name="buddy">
+                       <cstring>passwordInput</cstring>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLineEdit" name="passwordInput">
+                      <property name="echoMode">
+                       <enum>QLineEdit::Password</enum>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <layout class="QHBoxLayout" name="accountButtons">
+                      <item>
+                       <widget class="QPushButton" name="signInButton">
+                        <property name="text">
+                         <string>Войти</string>
+                        </property>
+                        <property name="role" stdset="0">
+                         <string>primary</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="registerButton">
+                        <property name="text">
+                         <string>Регистрация</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="accountStatus">
+                      <property name="wordWrap">
+                       <bool>true</bool>
+                      </property>
+                      <property name="role" stdset="0">
+                       <string>muted</string>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
                   </widget>
                  </item>
                  <item>
                   <spacer name="signInSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Vertical</enum>
+                   </property>
                    <property name="sizeType">
-                    <enum>QSizePolicy::Fixed</enum>
+                    <enum>QSizePolicy::Expanding</enum>
                    </property>
                    <property name="sizeHint" stdset="0">
                     <size>
                      <width>0</width>
-                     <height>8</height>
+                     <height>0</height>
                     </size>
                    </property>
                   </spacer>
@@ -2006,6 +2254,9 @@ QHeaderView::section {
        </item>
        <item>
         <spacer name="workspaceRightSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
          <property name="sizeType">
           <enum>QSizePolicy::Fixed</enum>
          </property>

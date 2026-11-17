@@ -10,7 +10,7 @@ from unicodedata import normalize
 
 from PyQt6 import uic
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import QApplication, QFileDialog, QHeaderView, QMainWindow, QMessageBox, QTableWidgetItem
 
 from account_client import AccountController
@@ -124,6 +124,30 @@ class HouseholdGoodsWindow(QMainWindow):
         self.set_usage_unit(self.packageUnit.currentText())
 
         self.forecastProduct.setTextFormat(Qt.TextFormat.PlainText)
+        preview = QPixmap(208, 64)
+        preview.fill(Qt.GlobalColor.transparent)
+        with QPainter(preview) as painter:
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            fill = QPainterPath()
+            fill.moveTo(8, 8)
+            fill.lineTo(200, 56)
+            fill.lineTo(8, 56)
+            fill.closeSubpath()
+            painter.fillPath(fill, QColor("#e1eeeb"))
+            pen = QPen(QColor("#397b76"), 3)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            painter.drawLine(8, 8, 200, 56)
+        self.forecastGraphPreview.setPixmap(preview)
+        forecast_header = self.forecastTable.horizontalHeader()
+        forecast_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.forecastTable.ensurePolished()
+        forecast_header.ensurePolished()
+        self.forecastTable.setFixedHeight(
+            forecast_header.sizeHint().height()
+            + sum(self.forecastTable.rowHeight(row) for row in range(self.forecastTable.rowCount()))
+            + 2 * self.forecastTable.frameWidth()
+        )
         self.calculateForecastButton.clicked.connect(self.show_forecast)
         self.frequencyInput.valueChanged.connect(self.clear_forecast)
         self.frequencyPeriod.currentIndexChanged.connect(self.clear_forecast)
@@ -176,6 +200,8 @@ class HouseholdGoodsWindow(QMainWindow):
         self.usageCostValue.setText("—")
         self.averageUsageValue.setText("—")
         self.fullUsesValue.setText("—")
+        self.sampleCountValue.setText("—")
+        self.sampleRangeValue.setText("—")
         self.statusBar().clearMessage()
 
     def set_usage_unit(self, unit):
@@ -199,6 +225,10 @@ class HouseholdGoodsWindow(QMainWindow):
             average_text = format_quantity(average)
             cost_text = format_number(cost_per_use, 2)
             full_uses_text = str(full_uses)
+            low, high = min(samples), max(samples)
+            range_text = format_quantity(Fraction(low))
+            if low != high:
+                range_text += f"–{format_quantity(Fraction(high))}"
         except ValueError as error:
             QMessageBox.warning(self, "Проверьте данные", str(error))
         except InvalidOperation:
@@ -210,6 +240,8 @@ class HouseholdGoodsWindow(QMainWindow):
             self.averageUsageValue.setText(f"{average_text} {self.packageUnit.currentText()}")
             self.usageCostValue.setText(f"{cost_text} ₽")
             self.fullUsesValue.setText(full_uses_text)
+            self.sampleCountValue.setText(str(len(samples)))
+            self.sampleRangeValue.setText(f"{range_text} {self.packageUnit.currentText()}")
             self.statusBar().showMessage("Расход рассчитан.", 3000)
             details = (
                 f"Средний расход — {self.averageUsageValue.text()}. "
@@ -226,30 +258,36 @@ class HouseholdGoodsWindow(QMainWindow):
 
     def clear_forecast(self):
         self.forecastProduct.setText("Данные из вкладки «Расход»")
+        self.forecastHint.hide()
         self.durationValue.setText("—")
-        self.set_forecast_rows((("—", "—", "—"), ("—", "—", "—")))
+        self.durationValue.show()
+        self.forecastDurationCaption.hide()
+        self.set_forecast_rows((("—", "—", "—"),) * self.forecastTable.rowCount())
 
     def show_forecast(self):
         try:
             amount, price, samples = self.read_usage_fields()
         except ValueError as error:
-            QMessageBox.warning(self, "Проверьте данные на вкладке «Расход»", str(error))
+            self.forecastHint.setText(f"На вкладке «Расход»: {error}")
+            self.durationValue.hide()
+            self.forecastHint.show()
             return
         except InvalidOperation:
-            QMessageBox.warning(self, "Ошибка ввода", "Проверьте числа на вкладке «Расход».")
+            self.forecastHint.setText("Проверьте числа на вкладке «Расход».")
+            self.durationValue.hide()
+            self.forecastHint.show()
             return
 
         average, cost_per_use, full_uses = calculate_usage(amount, price, samples)
         annual_uses = self.frequencyInput.value()
         if self.frequencyPeriod.currentText() == "в месяц":
             annual_uses *= 12
-        monthly_uses = Fraction(annual_uses, 12)
         days = Fraction(365 * full_uses, annual_uses)
         days_text = format_quantity(days) if days < 1 else format_number(days, 0)
 
         unit = self.packageUnit.currentText()
         rows = []
-        for uses in (monthly_uses, annual_uses):
+        for uses in (Fraction(annual_uses, 12), annual_uses):
             rows.append((
                 format_number(uses, 2, trim=True),
                 f"{format_quantity(average * uses)} {unit}",
@@ -259,9 +297,13 @@ class HouseholdGoodsWindow(QMainWindow):
         product = self.productInput.text().strip()
         package = format(amount, "f").replace(".", ",")
         self.forecastProduct.setText(f"{product} · {package} {unit}")
-        self.durationValue.setText(f"{days_text} дн.")
+        self.forecastHint.hide()
+        self.durationValue.show()
+        self.forecastDurationCaption.show()
+        monthly_row, yearly_row = rows
+        self.durationValue.setText(f"≈ {days_text} дн.")
         self.set_forecast_rows(rows)
-        details = f"Упаковки хватит на {days_text} дн. Затраты — {rows[0][2]} ₽ в месяц и {rows[1][2]} ₽ в год."
+        details = f"Упаковки хватит на {days_text} дн. Затраты — {monthly_row[2]} ₽ в месяц и {yearly_row[2]} ₽ в год."
         self.account.record("Прогноз", product, details)
 
     def load_price(self):
