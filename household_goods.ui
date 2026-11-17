@@ -783,7 +783,7 @@ QHeaderView::section {
               </widget>
              </item>
              <item>
-              <layout class="QHBoxLayout" name="productLinkFields" stretch="1,0">
+              <layout class="QHBoxLayout" name="productLinkFields" stretch="1,0,0">
                <item>
                 <widget class="QLineEdit" name="productLinkInput">
                  <property name="accessibleName">
@@ -798,6 +798,16 @@ QHeaderView::section {
                 <widget class="QPushButton" name="loadPriceButton">
                  <property name="text">
                   <string>Загрузить цену</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="loadPriceFileButton">
+                 <property name="text">
+                  <string>Из HTML</string>
+                 </property>
+                 <property name="toolTip">
+                  <string>Выбрать сохранённую HTML-страницу товара</string>
                  </property>
                 </widget>
                </item>

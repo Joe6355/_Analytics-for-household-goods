@@ -1,12 +1,25 @@
-from PyQt6.QtCore import QObject, QTimer, QUrl, pyqtSignal
+from pathlib import Path
+
+from PyQt6.QtCore import QObject, QTimer, QUrl, QUrlQuery, pyqtSignal
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 
-from store_page import parse_price
+from store_page import parse_price, parse_product_page
 
 
 MAX_HTML_BYTES = 8 * 1024 * 1024
 DOWNLOAD_TIMEOUT_MS = 15000
 PAGE_TOO_LARGE = "Карточка слишком большая. Введите цену вручную."
+MARKET_TRACKING = {"cpc", "sponsored"}
+
+
+def clean_market_url(url):
+    if url.host().removeprefix("www.") != "market.yandex.ru" or not url.path().startswith("/card/"):
+        return
+    query = QUrlQuery(url)
+    for key, _ in query.queryItems():
+        if key.lower() in MARKET_TRACKING or key.lower().startswith("utm_"):
+            query.removeAllQueryItems(key)
+    url.setQuery(query)
 
 
 class PriceLoader(QObject):
@@ -35,6 +48,7 @@ class PriceLoader(QObject):
             self.failed.emit("Введите ссылку на карточку товара в магазине.")
             return
 
+        clean_market_url(url)
         request = QNetworkRequest(url)
         request.setRawHeader(b"Accept", b"text/html, application/xhtml+xml")
         request.setRawHeader(b"User-Agent", b"HouseholdGoodsAnalytics/1.0")
@@ -45,6 +59,24 @@ class PriceLoader(QObject):
         self.reply.finished.connect(self.finish)
         self.timer.start(DOWNLOAD_TIMEOUT_MS)
         self.started.emit()
+
+    def load_file(self, path):
+        if self.reply is not None:
+            return
+        try:
+            with Path(path).open("rb") as file:
+                html = file.read(MAX_HTML_BYTES + 1)
+            if len(html) > MAX_HTML_BYTES:
+                raise ValueError(PAGE_TOO_LARGE)
+            price, page_url = parse_product_page(html)
+        except OSError:
+            self.failed.emit("Не удалось открыть HTML-файл карточки.")
+        except ValueError as error:
+            self.failed.emit(str(error))
+        else:
+            url = QUrl(page_url)
+            store = url.host().removeprefix("www.") if url.scheme() in ("http", "https") else ""
+            self.loaded.emit(store, price)
 
     def check_size(self):
         if self.reply is not None and self.reply.bytesAvailable() > MAX_HTML_BYTES:
@@ -66,9 +98,13 @@ class PriceLoader(QObject):
             if reply.error() != QNetworkReply.NetworkError.NoError:
                 status = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
                 code = f" (HTTP {status})" if status and status >= 400 else ""
+                if status in (403, 429):
+                    raise ValueError(
+                        f"Магазин ограничил доступ{code}. Откройте карточку в браузере и загрузите сохранённую страницу через «Из HTML»."
+                    )
                 raise ValueError(f"Не удалось открыть карточку{code}. Проверьте ссылку или введите цену вручную.")
 
-            html = bytes(reply.read(MAX_HTML_BYTES + 1))
+            html = bytes(reply.read(MAX_HTML_BYTES + 1) or b"")
             if len(html) > MAX_HTML_BYTES:
                 raise ValueError(PAGE_TOO_LARGE)
             content_type = bytes(reply.rawHeader(b"Content-Type")).decode("latin-1")

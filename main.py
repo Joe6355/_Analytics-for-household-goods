@@ -10,7 +10,7 @@ from unicodedata import normalize
 from PyQt6 import uic
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QTableWidgetItem
+from PyQt6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox, QTableWidgetItem
 
 from account_client import AccountController
 from price_loader import PriceLoader
@@ -135,6 +135,7 @@ class HouseholdGoodsWindow(QMainWindow):
         self.price_loader.failed.connect(self.show_price_error)
         self.productLinkInput.returnPressed.connect(self.load_price)
         self.loadPriceButton.clicked.connect(self.load_price)
+        self.loadPriceFileButton.clicked.connect(self.load_price_file)
         self.bestPriceLabel.setTextFormat(Qt.TextFormat.PlainText)
         self.addOfferButton.clicked.connect(self.add_offer)
         self.removeOfferButton.clicked.connect(self.remove_offer)
@@ -261,8 +262,13 @@ class HouseholdGoodsWindow(QMainWindow):
     def load_price(self):
         self.price_loader.load(self.productLinkInput.text())
 
+    def load_price_file(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Сохранённая карточка товара", "", "Страницы HTML (*.html *.htm)")
+        if path:
+            self.price_loader.load_file(path)
+
     def set_price_loading(self, loading):
-        for field in (self.productLinkInput, self.loadPriceButton, self.addOfferButton,
+        for field in (self.productLinkInput, self.loadPriceButton, self.loadPriceFileButton, self.addOfferButton,
                       self.storeInput, self.offerPriceInput):
             field.setEnabled(not loading)
         if loading:
@@ -272,12 +278,17 @@ class HouseholdGoodsWindow(QMainWindow):
 
     def apply_loaded_price(self, store, price):
         self.set_price_loading(False)
-        self.storeInput.setText(store)
+        if store:
+            self.storeInput.setText(store)
         self.offerPriceInput.setText(format(price, "f").replace(".", ","))
-        self.statusBar().showMessage("Цена загружена. Проверьте количество в упаковке и нажмите «Добавить».", 8000)
+        self.statusBar().showMessage("Цена загружена. Проверьте магазин и количество в упаковке.", 8000)
+        store_name = self.storeInput.text().strip()
         if self.sectionStack.currentWidget() is self.pricesPage:
-            self.offerPackageInput.setFocus()
-        self.account.record("Загрузка цены", "", f"{store} — {self.offerPriceInput.text()} ₽ за упаковку.")
+            (self.offerPackageInput if store_name else self.storeInput).setFocus()
+        details = f"{self.offerPriceInput.text()} ₽ за упаковку."
+        if store_name:
+            details = f"{store_name} — {details}"
+        self.account.record("Загрузка цены", "", details)
 
     def show_price_error(self, message):
         self.set_price_loading(False)

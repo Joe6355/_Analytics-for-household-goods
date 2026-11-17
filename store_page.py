@@ -9,6 +9,7 @@ UNAVAILABLE = {"OutOfStock", "SoldOut", "Discontinued", "PreOrder", "PreSale", "
 RUBLE_CURRENCIES = {"RUB", "RUR", "₽"}
 PRICE_TEXT = re.compile(r"(?:[0-9]{1,9}|[0-9]{1,3}(?:[ \u00a0\u202f][0-9]{3}){1,2})(?:[.,][0-9]{1,8})?")
 CHARSET = re.compile(r"charset\s*=\s*['\"]?([a-zA-Z0-9_-]+)", re.IGNORECASE)
+CAPTCHA_FORM = re.compile(r"(?:^|/)(?:checkcaptcha|showcaptcha)(?:[/?#]|$)", re.IGNORECASE)
 
 
 def ruble_price(value, currency):
@@ -33,15 +34,23 @@ class StoreMarkup(HTMLParser):
         self.in_old_price = False
         self.amount_text = None
         self.woocommerce_prices = set()
+        self.canonical_url = ""
+        self.needs_verification = False
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
+        if tag == "link" and "canonical" in (attributes.get("rel") or "").lower().split():
+            self.canonical_url = attributes.get("href") or ""
+        if tag == "form" and CAPTCHA_FORM.search(attributes.get("action") or ""):
+            self.needs_verification = True
         if tag == "script":
             script_type = (attributes.get("type") or "").partition(";")[0].strip().lower()
             if script_type == "application/ld+json":
                 self.script = []
 
         content = attributes.get("content")
+        if tag == "data" and content is None:
+            content = attributes.get("value")
         name = attributes.get("property") or attributes.get("itemprop") or attributes.get("name")
         if content and name:
             self.metadata[name.lower()].add(content.strip())
@@ -151,6 +160,12 @@ def metadata_prices(metadata):
 
 
 def parse_price(html, content_type=""):
+    return parse_product_page(html, content_type)[0]
+
+
+def parse_product_page(html, content_type=""):
+    if not html.strip():
+        raise ValueError("Магазин вернул пустую страницу. Введите цену вручную или загрузите сохранённый HTML.")
     charset = CHARSET.search(content_type) or CHARSET.search(html[:2048].decode("ascii", errors="ignore"))
     try:
         text = html.decode(charset[1] if charset else "utf-8-sig", errors="replace")
@@ -173,13 +188,22 @@ def parse_price(html, content_type=""):
 
     products = [node for node in nodes if is_product(node)]
     prices = set()
+    product_url = None
     if len(products) == 1:
         references = {node["@id"]: node for node in nodes if isinstance(node.get("@id"), str) and len(node) > 1}
         prices = offer_prices(products[0], references)
+        product_url = products[0].get("url")
 
     prices = prices or metadata_prices(markup.metadata) or markup.woocommerce_prices
     if len(prices) > 1:
         raise ValueError("В карточке несколько цен. Выберите нужную на сайте и введите её вручную.")
     if not prices:
-        raise ValueError("Цена в рублях не найдена в HTML. Введите её вручную.")
-    return prices.pop()
+        if markup.needs_verification:
+            raise ValueError(
+                "Сайт запросил проверку «Вы не робот?». Откройте карточку в браузере, "
+                "сохраните её через Ctrl+S и выберите «Из HTML»."
+            )
+        raise ValueError("В HTML нет цены в рублях. Загрузите сохранённую карточку через «Из HTML» или введите цену вручную.")
+    page_urls = (markup.canonical_url, product_url, *sorted(markup.metadata["og:url"]))
+    page_url = next((url for url in page_urls if isinstance(url, str) and url.startswith(("https://", "http://"))), "")
+    return prices.pop(), page_url
