@@ -1,8 +1,11 @@
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QTimer, QUrl, QUrlQuery, pyqtSignal
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
+from PyQt6.QtWidgets import QApplication
 
+from browser_loader import BrowserCardReader
 from store_page import parse_product_page
 
 
@@ -26,6 +29,7 @@ class PriceLoader(QObject):
     started = pyqtSignal()
     loaded = pyqtSignal(str, object)
     failed = pyqtSignal(str)
+    progress = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -35,10 +39,12 @@ class PriceLoader(QObject):
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.download_timed_out)
         self.reply = None
+        self.browser_reader = None
         self.download_error = ""
+        QApplication.instance().aboutToQuit.connect(self.stop_browser)
 
     def load(self, address):
-        if self.reply is not None:
+        if self.reply is not None or self.browser_reader is not None:
             return
         address = address.strip()
         if "://" not in address:
@@ -49,6 +55,9 @@ class PriceLoader(QObject):
             return
 
         clean_market_url(url)
+        if url.host().removeprefix("www.") in ("ozon.ru", "market.yandex.ru"):
+            self.load_browser(url)
+            return
         request = QNetworkRequest(url)
         request.setRawHeader(b"Accept", b"text/html, application/xhtml+xml")
         request.setRawHeader(b"User-Agent", b"HouseholdGoodsAnalytics/1.0")
@@ -61,7 +70,7 @@ class PriceLoader(QObject):
         self.started.emit()
 
     def load_file(self, path):
-        if self.reply is not None:
+        if self.reply is not None or self.browser_reader is not None:
             return
         try:
             with Path(path).open("rb") as file:
@@ -77,6 +86,34 @@ class PriceLoader(QObject):
             url = QUrl(product.url)
             store = url.host().removeprefix("www.") if url.scheme() in ("http", "https") else ""
             self.loaded.emit(store, product)
+
+    def load_browser(self, url):
+        self.browser_reader = BrowserCardReader(url.toString(), self)
+        self.browser_reader.progress.connect(self.progress)
+        self.browser_reader.open_requested.connect(self.open_browser)
+        self.browser_reader.finished.connect(self.finish_browser)
+        self.browser_reader.start()
+        self.started.emit()
+
+    def open_browser(self, address):
+        if not QDesktopServices.openUrl(QUrl(address)):
+            self.browser_reader.error = "Не удалось открыть карточку в браузере."
+            self.browser_reader.requestInterruption()
+
+    def finish_browser(self):
+        reader = self.browser_reader
+        self.browser_reader = None
+        if reader.product is None:
+            self.failed.emit(reader.error)
+        else:
+            store = QUrl(reader.address).host().removeprefix("www.")
+            self.loaded.emit(store, reader.product)
+        reader.deleteLater()
+
+    def stop_browser(self):
+        if self.browser_reader is not None:
+            self.browser_reader.requestInterruption()
+            self.browser_reader.wait()
 
     def check_size(self):
         if self.reply is not None and self.reply.bytesAvailable() > MAX_HTML_BYTES:

@@ -4,6 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from html.parser import HTMLParser
+from urllib.parse import urlsplit
 
 
 UNAVAILABLE = {"OutOfStock", "SoldOut", "Discontinued", "PreOrder", "PreSale", "BackOrder"}
@@ -40,6 +41,7 @@ class ProductPage:
     url: str
     name: str
     package: tuple[Decimal, str] | None
+    price_note: str = ""
 
 
 def ruble_price(value, currency):
@@ -266,6 +268,37 @@ def find_package(name, labels):
 
 def parse_price(html, content_type=""):
     return parse_product_page(html, content_type).price
+
+
+def parse_browser_product(text, address, title):
+    host = (urlsplit(address).hostname or "").removeprefix("www.")
+    if host not in ("ozon.ru", "market.yandex.ru"):
+        raise ValueError("Для этого магазина пока доступен разбор HTML карточки.")
+    name = re.split(r"\s+(?:—\s*)?купить\b", title, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+    lines = [" ".join(line.replace("\ufffc", "").split()) for line in text.splitlines()]
+    lines = [line for line in lines if line]
+    if not name or name not in lines:
+        raise ValueError("Дождитесь появления названия и цены товара в браузере.")
+    card = "\n".join(lines[lines.index(name) + 1:])
+    for marker in ("В корзину", "Рекомендуем также", "Покупают вместе", "Подобрали для вас", "Нет в наличии"):
+        card = card.split(marker, 1)[0]
+    if host == "ozon.ru":
+        card = card.split("Товар проверен", 1)[-1]
+    match = re.search(rf"(?P<price>{PRICE_TEXT.pattern})\s*₽", card)
+    if not match:
+        raise ValueError("Дождитесь появления цены товара в браузере.")
+    price = ruble_price(match["price"], "RUB")
+    note = "С банками" if "С банками" in card[match.end():match.end() + 30] else ""
+    if host == "market.yandex.ru" and "Пэй" in card[match.end():match.end() + 30]:
+        note = "Цена с Яндекс Пэй"
+    labels = []
+    for label, value in zip(lines, lines[1:]):
+        key, _, unit = label.lower().replace("ё", "е").partition(",")
+        if key in PACKAGE_LABELS:
+            if unit.strip() in PACKAGE_UNITS and PRICE_TEXT.fullmatch(value):
+                value = f"{value} {unit.strip()}"
+            labels.append(f"{key} {value}")
+    return ProductPage(price, address, name, find_package(name, labels), note)
 
 
 def parse_product_page(html, content_type=""):

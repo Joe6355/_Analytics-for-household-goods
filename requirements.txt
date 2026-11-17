@@ -1,1 +1,2 @@
 PyQt6>=6.8,<7
+uiautomation>=2.0.29,<3; sys_platform == "win32"

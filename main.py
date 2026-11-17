@@ -104,6 +104,7 @@ class Offer:
     amount: Decimal
     price: Decimal
     product: str = ""
+    price_note: str = ""
 
     @property
     def price_per_unit(self):
@@ -131,11 +132,14 @@ class HouseholdGoodsWindow(QMainWindow):
 
         self.offers = []
         self.offer_name = ""
+        self.offer_price_note = ""
         self.pricesProduct.hide()
         self.price_loader = PriceLoader(self)
         self.price_loader.started.connect(lambda: self.set_price_loading(True))
         self.price_loader.loaded.connect(self.apply_loaded_product)
         self.price_loader.failed.connect(self.show_price_error)
+        self.price_loader.progress.connect(self.statusBar().showMessage)
+        self.offerPriceInput.textEdited.connect(self.clear_offer_price_note)
         self.productLinkInput.returnPressed.connect(self.load_price)
         self.loadPriceButton.clicked.connect(self.load_price)
         self.loadPriceFileButton.clicked.connect(self.load_price_file)
@@ -267,6 +271,9 @@ class HouseholdGoodsWindow(QMainWindow):
     def load_price(self):
         self.price_loader.load(self.productLinkInput.text())
 
+    def clear_offer_price_note(self):
+        self.offer_price_note = ""
+
     def load_price_file(self):
         path, _ = QFileDialog.getOpenFileName(self, "Сохранённая карточка товара", "", "Страницы HTML (*.html *.htm)")
         if path:
@@ -293,6 +300,7 @@ class HouseholdGoodsWindow(QMainWindow):
             return
 
         self.offer_name = product.name
+        self.offer_price_note = product.price_note
         amount_text = format(amount, "f").replace(".", ",") if amount is not None else ""
         price_text = format(product.price, "f").replace(".", ",")
         self.storeInput.setText(store)
@@ -302,6 +310,8 @@ class HouseholdGoodsWindow(QMainWindow):
             self.offerUnit.setCurrentText(unit)
         package_text = f"{amount_text} {unit}" if unit else "упаковку"
         details = f"{price_text} ₽ за {package_text}."
+        if product.price_note:
+            details += f" {product.price_note}."
         self.account.record("Загрузка цены", product.name, f"{store} — {details}" if store else details)
 
         missing = [field for value, field in ((store, "магазин"), (unit, "фасовку")) if not value]
@@ -329,12 +339,13 @@ class HouseholdGoodsWindow(QMainWindow):
             QMessageBox.warning(self, "Проверьте данные", str(error))
             return
 
-        self.offers.append(Offer(store, amount, price, self.offer_name))
+        self.offers.append(Offer(store, amount, price, self.offer_name, self.offer_price_note))
         self.offers.sort(key=lambda offer: offer.price_per_unit)
         self.update_offers_table()
         if len(self.offers) >= 2:
             self.account.record("Сравнение цен", self.offer_name, self.bestPriceLabel.text())
         self.offer_name = ""
+        self.offer_price_note = ""
         self.productLinkInput.clear()
         self.storeInput.clear()
         self.offerPackageInput.clear()
@@ -369,6 +380,8 @@ class HouseholdGoodsWindow(QMainWindow):
                 item = QTableWidgetItem(text)
                 if column >= 2:
                     item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                    if column >= 3 and offer.price_note:
+                        item.setToolTip(f"<qt>{escape(offer.price_note)}</qt>")
                 else:
                     item.setToolTip(f"<qt>{escape(text)}</qt>")
                 table.setItem(row, column, item)
