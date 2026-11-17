@@ -1,13 +1,15 @@
 import logging
 import re
 import sys
+from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 from pathlib import Path
 
 from PyQt6 import uic
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
+from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QTableWidgetItem
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -22,10 +24,7 @@ def read_number(text, error_message):
     return Decimal(text.replace(",", "."))
 
 
-def validate_usage(product, amount, price, measurements):
-    if not product.strip():
-        raise ValueError("Введите название товара.")
-
+def read_package(amount, price):
     package_amount = read_number(amount, "Введите количество в упаковке числом.")
     if package_amount <= 0:
         raise ValueError("Количество в упаковке должно быть больше нуля.")
@@ -34,7 +33,14 @@ def validate_usage(product, amount, price, measurements):
     package_price = read_number(price, price_error)
     if package_price < 0:
         raise ValueError(price_error)
+    return package_amount, package_price
 
+
+def validate_usage(product, amount, price, measurements):
+    if not product.strip():
+        raise ValueError("Введите название товара.")
+
+    package_amount, package_price = read_package(amount, price)
     samples = []
     for line_number, line in enumerate(measurements.splitlines(), start=1):
         if line.strip():
@@ -57,11 +63,22 @@ def calculate_usage(package_amount, package_price, samples):
     return average, cost_per_use, full_uses
 
 
-def format_usage_number(value, places):
+def format_number(value, places):
     scale = 10 ** places
     rounded = int(value * scale + Fraction(1, 2))
     whole, remainder = divmod(rounded, scale)
-    return f"{whole},{remainder:0{places}d}"
+    return f"{Decimal(whole):f},{remainder:0{places}d}"
+
+
+@dataclass(frozen=True)
+class Offer:
+    store: str
+    amount: Decimal
+    price: Decimal
+
+    @property
+    def price_per_unit(self):
+        return Fraction(self.price) / Fraction(self.amount)
 
 
 class HouseholdGoodsWindow(QMainWindow):
@@ -74,6 +91,24 @@ class HouseholdGoodsWindow(QMainWindow):
             field.textChanged.connect(self.clear_usage_result)
         self.packageUnit.currentTextChanged.connect(self.set_usage_unit)
         self.set_usage_unit(self.packageUnit.currentText())
+
+        self.offers = []
+        self.pricesProduct.hide()
+        self.productLinkInput.setEnabled(False)
+        self.loadPriceButton.setEnabled(False)
+        self.bestPriceLabel.setTextFormat(Qt.TextFormat.PlainText)
+        self.addOfferButton.clicked.connect(self.add_offer)
+        self.removeOfferButton.clicked.connect(self.remove_offer)
+        self.offersTable.itemSelectionChanged.connect(self.update_remove_button)
+        self.offerUnit.currentTextChanged.connect(self.update_offers_table)
+        self.update_offers_table()
+
+        self.sectionStack.currentChanged.connect(self.update_demo_note)
+        self.update_demo_note()
+
+    def update_demo_note(self):
+        page = self.sectionStack.currentWidget()
+        self.demoNote.setVisible(page not in (self.usagePage, self.pricesPage))
 
     def clear_usage_result(self):
         self.usageCostValue.setText("—")
@@ -96,10 +131,10 @@ class HouseholdGoodsWindow(QMainWindow):
                 measurements=self.measurementsInput.toPlainText(),
             )
             average, cost_per_use, full_uses = calculate_usage(amount, price, samples)
-            average_text = format_usage_number(average, 3).rstrip("0").rstrip(",")
+            average_text = format_number(average, 3).rstrip("0").rstrip(",")
             if average_text == "0":
                 average_text = "< 0,001"
-            cost_text = format_usage_number(cost_per_use, 2)
+            cost_text = format_number(cost_per_use, 2)
             full_uses_text = str(full_uses)
         except ValueError as error:
             QMessageBox.warning(self, "Проверьте данные", str(error))
@@ -115,6 +150,63 @@ class HouseholdGoodsWindow(QMainWindow):
             self.statusBar().showMessage("Расход рассчитан.", 3000)
         finally:
             self.calculateUsageButton.setEnabled(True)
+
+    def add_offer(self):
+        store = self.storeInput.text().strip()
+        try:
+            if not store:
+                raise ValueError("Введите название магазина.")
+            amount, price = read_package(self.offerPackageInput.text(), self.offerPriceInput.text())
+        except ValueError as error:
+            QMessageBox.warning(self, "Проверьте данные", str(error))
+            return
+
+        self.offers.append(Offer(store, amount, price))
+        self.offers.sort(key=lambda offer: offer.price_per_unit)
+        self.update_offers_table()
+        self.storeInput.clear()
+        self.offerPackageInput.clear()
+        self.offerPriceInput.clear()
+        self.storeInput.setFocus()
+
+    def remove_offer(self):
+        selected = self.offersTable.selectionModel().selectedRows()
+        if selected:
+            del self.offers[selected[0].row()]
+            self.update_offers_table()
+
+    def update_remove_button(self):
+        self.removeOfferButton.setEnabled(self.offersTable.selectionModel().hasSelection())
+
+    def update_offers_table(self):
+        unit = self.offerUnit.currentText()
+        scale = 1 if unit == "шт." else 100
+        quantity = f"{scale} {unit}"
+        self.offerUnit.setEnabled(not self.offers)
+
+        table = self.offersTable
+        table.horizontalHeaderItem(3).setText(f"За {quantity}, ₽")
+        table.setRowCount(0)
+        table.setRowCount(len(self.offers))
+        for row, offer in enumerate(self.offers):
+            amount = format(offer.amount, "f").replace(".", ",")
+            price = format_number(Fraction(offer.price), 2)
+            normalized_price = format_number(offer.price_per_unit * scale, 2)
+            for column, text in enumerate((offer.store, f"{amount} {unit}", price, normalized_price)):
+                item = QTableWidgetItem(text)
+                if column > 0:
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                table.setItem(row, column, item)
+        self.update_remove_button()
+
+        if len(self.offers) < 2:
+            self.bestPriceLabel.setText("Добавьте два предложения по одному товару для сравнения.")
+            return
+
+        best_price = self.offers[0].price_per_unit
+        stores = dict.fromkeys(offer.store for offer in self.offers if offer.price_per_unit == best_price)
+        best_amount = format_number(best_price * scale, 2)
+        self.bestPriceLabel.setText(f"Лучшая цена — {best_amount} ₽ за {quantity} ({', '.join(stores)}).")
 
 
 if __name__ == "__main__":
