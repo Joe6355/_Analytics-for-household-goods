@@ -11,6 +11,8 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QTableWidgetItem
 
+from price_loader import PriceLoader
+
 
 PROJECT_DIR = Path(__file__).resolve().parent
 LOGGER = logging.getLogger(__name__)
@@ -94,8 +96,12 @@ class HouseholdGoodsWindow(QMainWindow):
 
         self.offers = []
         self.pricesProduct.hide()
-        self.productLinkInput.setEnabled(False)
-        self.loadPriceButton.setEnabled(False)
+        self.price_loader = PriceLoader(self)
+        self.price_loader.started.connect(lambda: self.set_price_loading(True))
+        self.price_loader.loaded.connect(self.apply_loaded_price)
+        self.price_loader.failed.connect(self.show_price_error)
+        self.productLinkInput.returnPressed.connect(self.load_price)
+        self.loadPriceButton.clicked.connect(self.load_price)
         self.bestPriceLabel.setTextFormat(Qt.TextFormat.PlainText)
         self.addOfferButton.clicked.connect(self.add_offer)
         self.removeOfferButton.clicked.connect(self.remove_offer)
@@ -151,6 +157,30 @@ class HouseholdGoodsWindow(QMainWindow):
         finally:
             self.calculateUsageButton.setEnabled(True)
 
+    def load_price(self):
+        self.price_loader.load(self.productLinkInput.text())
+
+    def set_price_loading(self, loading):
+        for field in (self.productLinkInput, self.loadPriceButton, self.addOfferButton,
+                      self.storeInput, self.offerPriceInput):
+            field.setEnabled(not loading)
+        if loading:
+            self.statusBar().showMessage("Загружаю цену…")
+        else:
+            self.statusBar().clearMessage()
+
+    def apply_loaded_price(self, store, price):
+        self.set_price_loading(False)
+        self.storeInput.setText(store)
+        self.offerPriceInput.setText(format(price, "f").replace(".", ","))
+        self.statusBar().showMessage("Цена загружена. Проверьте количество в упаковке и нажмите «Добавить».", 8000)
+        if self.sectionStack.currentWidget() is self.pricesPage:
+            self.offerPackageInput.setFocus()
+
+    def show_price_error(self, message):
+        self.set_price_loading(False)
+        QMessageBox.warning(self, "Загрузка цены", message)
+
     def add_offer(self):
         store = self.storeInput.text().strip()
         try:
@@ -164,10 +194,12 @@ class HouseholdGoodsWindow(QMainWindow):
         self.offers.append(Offer(store, amount, price))
         self.offers.sort(key=lambda offer: offer.price_per_unit)
         self.update_offers_table()
+        self.productLinkInput.clear()
         self.storeInput.clear()
         self.offerPackageInput.clear()
         self.offerPriceInput.clear()
         self.storeInput.setFocus()
+        self.statusBar().clearMessage()
 
     def remove_offer(self):
         selected = self.offersTable.selectionModel().selectedRows()
