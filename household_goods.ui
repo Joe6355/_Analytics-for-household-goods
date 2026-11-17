@@ -1454,9 +1454,8 @@ QHeaderView::section {
                <attribute name="verticalHeaderDefaultSectionSize">
                 <number>44</number>
                </attribute>
-               <row/>
-               <row/>
-               <row/>
+               <row />
+               <row />
                <column>
                 <property name="text">
                  <string>Период</string>
@@ -1491,7 +1490,7 @@ QHeaderView::section {
                </column>
                <item row="0" column="0">
                 <property name="text">
-                 <string>Неделя</string>
+                 <string>Месяц</string>
                 </property>
                </item>
                <item row="0" column="1">
@@ -1520,39 +1519,10 @@ QHeaderView::section {
                </item>
                <item row="1" column="0">
                 <property name="text">
-                 <string>Месяц</string>
-                </property>
-               </item>
-               <item row="1" column="1">
-                <property name="text">
-                 <string>16</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="1" column="2">
-                <property name="text">
-                 <string>144 мл</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="1" column="3">
-                <property name="text">
-                 <string>100,51</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="2" column="0">
-                <property name="text">
                  <string>Год</string>
                 </property>
                </item>
-               <item row="2" column="1">
+               <item row="1" column="1">
                 <property name="text">
                  <string>192</string>
                 </property>
@@ -1560,7 +1530,7 @@ QHeaderView::section {
                  <set>AlignTrailing|AlignVCenter</set>
                 </property>
                </item>
-               <item row="2" column="2">
+               <item row="1" column="2">
                 <property name="text">
                  <string>1 728 мл</string>
                 </property>
@@ -1568,7 +1538,7 @@ QHeaderView::section {
                  <set>AlignTrailing|AlignVCenter</set>
                 </property>
                </item>
-               <item row="2" column="3">
+               <item row="1" column="3">
                 <property name="text">
                  <string>1 206,14</string>
                 </property>
