@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QTimer, QUrl, QUrlQuery, pyqtSignal
@@ -168,7 +169,8 @@ class PriceLoader(QObject):
         except ValueError as error:
             self.failed.emit(str(error))
         else:
-            self.loaded.emit(store, product)
+            address = self.request_url or reply.url()
+            self.loaded.emit(store, replace(product, url=address.toString(QUrl.ComponentFormattingOption.FullyEncoded)))
         finally:
             reply.deleteLater()
         if use_browser:

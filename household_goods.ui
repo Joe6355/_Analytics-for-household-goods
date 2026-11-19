@@ -834,6 +834,42 @@ QHeaderView::section {
               </widget>
              </item>
              <item>
+              <layout class="QHBoxLayout" name="comparisonControls" stretch="0,1,0">
+               <item>
+                <widget class="QLabel" name="comparisonLabel">
+                 <property name="text">
+                  <string>Список сравнения</string>
+                 </property>
+                 <property name="buddy">
+                  <cstring>comparisonSelector</cstring>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QComboBox" name="comparisonSelector">
+                 <property name="sizeAdjustPolicy">
+                  <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
+                 </property>
+                 <property name="minimumContentsLength">
+                  <number>15</number>
+                 </property>
+                 <item>
+                  <property name="text">
+                   <string>Основное сравнение</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="newComparisonButton">
+                 <property name="text">
+                  <string>Новый список</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item>
               <layout class="QHBoxLayout" name="productLinkFields" stretch="1,0,0">
                <item>
                 <widget class="QLineEdit" name="productLinkInput">
@@ -1014,6 +1050,11 @@ QHeaderView::section {
                  <set>AlignTrailing|AlignVCenter</set>
                 </property>
                </column>
+               <column>
+                <property name="text">
+                 <string>Дата и условия</string>
+                </property>
+               </column>
                <item row="0" column="0">
                 <property name="text">
                  <string>Гель для посуды</string>
@@ -1119,7 +1160,7 @@ QHeaderView::section {
               </widget>
              </item>
              <item>
-              <layout class="QHBoxLayout" name="offerActions" stretch="1,0,0">
+              <layout class="QHBoxLayout" name="offerActions" stretch="1,0,0,0">
                <item>
                 <widget class="QLabel" name="bestPriceLabel">
                  <property name="styleSheet">
@@ -1152,6 +1193,19 @@ QHeaderView::section {
                  </property>
                  <property name="role" stdset="0">
                   <string>primary</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="refreshOfferButton">
+                 <property name="enabled">
+                  <bool>false</bool>
+                 </property>
+                 <property name="text">
+                  <string>Обновить цену</string>
+                 </property>
+                 <property name="toolTip">
+                  <string>Загрузить новую цену по ссылке выбранной карточки</string>
                  </property>
                 </widget>
                </item>
@@ -1829,7 +1883,7 @@ QHeaderView::section {
                    <property name="role" stdset="0">
                     <string>sheet</string>
                    </property>
-                   <layout class="QVBoxLayout" name="effectivenessLayout" stretch="0,0,0,0,0,0">
+                   <layout class="QVBoxLayout" name="effectivenessLayout" stretch="0,0,0,0,0,0,0">
                     <property name="spacing">
                      <number>11</number>
                     </property>
@@ -1982,6 +2036,30 @@ QHeaderView::section {
                        <string>featuredFigure</string>
                       </property>
                      </widget>
+                    </item>
+                    <item>
+                     <layout class="QHBoxLayout" name="successCostResult" stretch="1,0">
+                      <item>
+                       <widget class="QLabel" name="successCostLabel">
+                        <property name="text">
+                         <string>Стоимость успешного применения</string>
+                        </property>
+                        <property name="toolTip">
+                         <string>Затраты на все испытания делятся на число успешных применений</string>
+                        </property>
+                        <property name="wordWrap">
+                         <bool>true</bool>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="successCostValue">
+                        <property name="text">
+                         <string>—</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
                     </item>
                     <item>
                      <widget class="QLabel" name="effectivenessError">
