@@ -9,7 +9,22 @@ from urllib.parse import urlsplit
 
 UNAVAILABLE = {"OutOfStock", "SoldOut", "Discontinued", "PreOrder", "PreSale", "BackOrder"}
 RUBLE_CURRENCIES = {"RUB", "RUR", "₽"}
+ALIEXPRESS_HOSTS = {"aliexpress.ru", "aliexpress.com"}
+BROWSER_STORE_HOSTS = {
+    "ozon.ru", "market.yandex.ru", "wildberries.ru", "5ka.ru", "dixy.ru", "lenta.com",
+} | ALIEXPRESS_HOSTS
+SUPPORTED_STORE_HOSTS = BROWSER_STORE_HOSTS | {"magnit.ru", "fix-price.com"}
 PRICE_TEXT = re.compile(r"(?:[0-9]{1,9}|[0-9]{1,3}(?:[ \u00a0\u202f][0-9]{3}){1,2})(?:[.,][0-9]{1,8})?")
+BROWSER_PRICE = re.compile(
+    rf"(?<![\w.,+−-])(?P<price>{PRICE_TEXT.pattern})\s*(?:₽|руб(?:\.|ля|лей)?(?!\w))",
+    re.IGNORECASE,
+)
+OZON_UNIT_PRICE = re.compile(r"[ \t]*(?:/|за[ \t]+)[ \t]*(?:[0-9]+[ \t]*)?(?:мл|г|кг|л)\b", re.IGNORECASE)
+SPLIT_RUBLE_PRICE = re.compile(r"(?<![\d.,])([0-9]{1,3}(?: [0-9]{3}){1,2}|[0-9]{1,9})\s+([0-9]{2})\s*₽")
+RECOMMENDATIONS = re.compile(
+    r"^(?:Рекомендуем также|Покупают вместе|Подобрали для вас|Похожие товары|С этим товаром покупают|Берут вместе)$",
+    re.MULTILINE | re.IGNORECASE,
+)
 CHARSET = re.compile(r"charset\s*=\s*['\"]?([a-zA-Z0-9_-]+)", re.IGNORECASE)
 CAPTCHA_FORM = re.compile(r"(?:^|/)(?:checkcaptcha|showcaptcha)(?:[/?#]|$)", re.IGNORECASE)
 SAVED_FROM = re.compile(r"saved from url=\([0-9]+\)(https?://\S+)", re.IGNORECASE)
@@ -20,7 +35,7 @@ PACKAGE_UNITS = {
     "pcs": ("шт.", 1),
 }
 PACKAGE_LABELS = {
-    "объем": "мл", "объем бутылки": "мл", "объем упаковки": "мл",
+    "объем": "мл", "объем бутылки": "мл", "объем упаковки": "мл", "объем товара": "мл",
     "масса нетто": "г", "вес нетто": "г", "вес": "г",
     "количество в упаковке": "шт.", "количество штук в упаковке": "шт.",
 }
@@ -42,6 +57,39 @@ class ProductPage:
     name: str
     package: tuple[Decimal, str] | None
     price_note: str = ""
+
+
+class BrowserPageRequired(ValueError):
+    """Цена появится после загрузки карточки в браузере."""
+
+
+class StorePageUnavailable(ValueError):
+    """В браузере показано сообщение об ошибке магазина вместо карточки."""
+
+
+class ProductUnavailable(StorePageUnavailable):
+    """Магазин явно указал отсутствие товара."""
+
+
+def store_host(address):
+    host = (urlsplit(address).hostname or "").removeprefix("www.")
+    return {"fix-price.ru": "fix-price.com", "ru.aliexpress.com": "aliexpress.com"}.get(host, host)
+
+
+def is_store_card(address):
+    host = store_host(address)
+    path = urlsplit(address).path
+    if host == "wildberries.ru":
+        return re.fullmatch(r"/catalog/[0-9]+/detail\.aspx/?", path) is not None
+    if host in ALIEXPRESS_HOSTS:
+        return re.fullmatch(r"/item/(?:0_)?[0-9]+\.html/?", path) is not None
+    if host == "market.yandex.ru":
+        return path.startswith(("/card/", "/product--"))
+    if host == "fix-price.com":
+        return path.startswith("/catalog/") and "/p-" in path
+    if host in {"ozon.ru", "5ka.ru", "magnit.ru", "dixy.ru", "lenta.com"}:
+        return path.startswith("/product/") and bool(path.removeprefix("/product/").strip("/"))
+    return False
 
 
 def ruble_price(value, currency):
@@ -196,7 +244,7 @@ def offer_prices(product, references):
         prices.update(price for value in values if (price := ruble_price(value, currency)) is not None)
 
     if offer_count and offer_count == unavailable_count:
-        raise ValueError("Товар недоступен. Проверьте наличие на сайте магазина.")
+        raise ProductUnavailable("Товар недоступен. Проверьте наличие на сайте магазина.")
     return prices
 
 
@@ -271,39 +319,102 @@ def parse_price(html, content_type=""):
 
 
 def parse_browser_product(text, address, title):
-    host = (urlsplit(address).hostname or "").removeprefix("www.")
-    if host not in ("ozon.ru", "market.yandex.ru"):
+    host = store_host(address)
+    if host not in SUPPORTED_STORE_HOSTS:
         raise ValueError("Для этого магазина пока доступен разбор HTML карточки.")
-    name = re.split(r"\s+(?:—\s*)?купить\b", title, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+    if not is_store_card(address):
+        raise ValueError("Укажите прямую ссылку на карточку товара.")
+    name = re.split(r"(?:\s*[—–:-]\s*|\s+)купить\b", title, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+    if host in ALIEXPRESS_HOSTS:
+        name = re.sub(r"\s*\|\s*AliExpress\s*$", "", name, flags=re.IGNORECASE)
+    name = " ".join(name.split())
     lines = [" ".join(line.replace("\ufffc", "").split()) for line in text.splitlines()]
     lines = [line for line in lines if line]
-    if not name or name not in lines:
+    if "Не удалось загрузить сайт" in lines:
+        raise StorePageUnavailable("Сайт магазина показывает ошибку загрузки. Повторите добавление, когда карточка откроется в браузере.")
+    heading = name
+    if host == "lenta.com" and heading not in lines and "Полное название товара" in lines:
+        index = lines.index("Полное название товара")
+        if index + 1 < len(lines) and lines[index + 1] in lines[:index]:
+            name = heading = lines[index + 1]
+    if host == "wildberries.ru":
+        article = urlsplit(address).path.split("/")[2]
+        title_name = name.removesuffix(f" {article}")
+        headings = [
+            line for line in lines
+            if title_name == line or title_name.startswith(line + " ") and title_name[len(line) + 1:] in lines
+        ]
+        if headings:
+            heading = max(headings, key=len)
+            brand = title_name[len(heading):].strip()
+            name = f"{brand} / {heading}" if brand else heading
+    anchor = name if name in lines else heading
+    if not name or anchor not in lines:
+        if any("не робот" in line.lower() for line in lines[:20]):
+            raise ValueError("Магазин запросил проверку «Вы не робот?». Пройдите её в браузере и повторите добавление.")
         raise ValueError("Дождитесь появления названия и цены товара в браузере.")
-    card = "\n".join(lines[lines.index(name) + 1:])
-    for marker in ("В корзину", "Рекомендуем также", "Покупают вместе", "Подобрали для вас", "Нет в наличии"):
-        card = card.split(marker, 1)[0]
+    details = "\n".join(lines[lines.index(anchor) + 1:])
+    card = RECOMMENDATIONS.split(details, maxsplit=1)[0]
+    if re.search(r"^(?:Нет в наличии|Товар закончился|Товар недоступен|Товар распродан)\b", card, re.MULTILINE | re.IGNORECASE):
+        raise ProductUnavailable("Товар недоступен. Проверьте наличие на сайте магазина.")
+    if host == "lenta.com":
+        # В узком окне ценник закреплён внизу, после рекомендаций и категорий.
+        _, _, buy_panel = details.partition("\nДругие категории с этим товаром\n")
+        if "\nВ корзину" in buy_panel:
+            card = buy_panel
+        if "С Картой №1" in card:
+            card = card.split("С Картой №1", 1)[1]
+            price_note = "Цена с Картой №1"
+        else:
+            price_note = ""
+        if "\nВ корзину" not in card:
+            raise ValueError("Лента не показывает цену покупки. Проверьте наличие в выбранном магазине.")
+    else:
+        price_note = ""
+    card = re.split(r"^(?:В корзину|Добавить в корзину)$", card, maxsplit=1, flags=re.MULTILINE)[0]
     if host == "ozon.ru":
         card = card.split("Товар проверен", 1)[-1]
-    match = re.search(rf"(?P<price>{PRICE_TEXT.pattern})\s*₽", card)
-    if not match:
+    if host == "5ka.ru":
+        current_price = re.search(r"^Цена\b[\s:]*", card, re.MULTILINE | re.IGNORECASE)
+        if current_price:
+            card = card[current_price.end():]
+        elif "Старая цена" in card:
+            raise ValueError("Дождитесь появления текущей цены товара в Пятёрочке.")
+    if host in {"5ka.ru", "lenta.com"}:
+        # Рубли и копейки на сайтах могут находиться в разных текстовых узлах.
+        card = SPLIT_RUBLE_PRICE.sub(r"\1,\2 ₽", card)
+    match = next((match for match in BROWSER_PRICE.finditer(card)
+                  if host != "ozon.ru" or not OZON_UNIT_PRICE.match(card, match.end())), None)
+    price = ruble_price(match["price"], "RUB") if match else None
+    if price is None:
         raise ValueError("Дождитесь появления цены товара в браузере.")
-    price = ruble_price(match["price"], "RUB")
-    note = "С банками" if "С банками" in card[match.end():match.end() + 30] else ""
-    if host == "market.yandex.ru" and "Пэй" in card[match.end():match.end() + 30]:
-        note = "Цена с Яндекс Пэй"
+    before_price = card[max(0, match.start() - 30):match.start()]
+    after_price = card[match.end():match.end() + 30]
+    if (re.search(r"(?:\d\s*[-–—]|\b(?:от|до|по))\s*$", before_price, re.IGNORECASE)
+            or re.match(r"[ \t]*[-–—][ \t]*[0-9]+[.,0-9 ]*\s*₽", after_price)):
+        raise ValueError("Выберите вариант товара с полной ценой в браузере и повторите добавление.")
+    if host == "ozon.ru" and "С банками" in after_price:
+        price_note = "С банками"
+    if host == "market.yandex.ru" and "Пэй" in after_price:
+        price_note = "Цена с Яндекс Пэй"
+    if host in ALIEXPRESS_HOSTS and "В комбо-корзину" in card:
+        price_note = "Цена комбо"
     labels = []
-    for label, value in zip(lines, lines[1:]):
+    for label, value, following in zip(lines, lines[1:], lines[2:] + [""]):
         key, _, unit = label.lower().replace("ё", "е").partition(",")
         if key in PACKAGE_LABELS:
+            # Несколько фасовок подряд относятся к переключателю вариантов товара.
+            if PACKAGE_AMOUNT.fullmatch(value) and PACKAGE_AMOUNT.fullmatch(following):
+                continue
             if unit.strip() in PACKAGE_UNITS and PRICE_TEXT.fullmatch(value):
                 value = f"{value} {unit.strip()}"
             labels.append(f"{key} {value}")
-    return ProductPage(price, address, name, find_package(name, labels), note)
+    return ProductPage(price, address, name, find_package(name, labels), price_note)
 
 
 def parse_product_page(html, content_type=""):
     if not html.strip():
-        raise ValueError("Магазин вернул пустую страницу. Введите цену вручную или загрузите сохранённый HTML.")
+        raise BrowserPageRequired("Магазин вернул пустую страницу. Дождитесь загрузки карточки в браузере.")
     charset = CHARSET.search(content_type) or CHARSET.search(html[:2048].decode("ascii", errors="ignore"))
     try:
         text = html.decode(charset[1] if charset else "utf-8-sig", errors="replace")
@@ -333,14 +444,13 @@ def parse_product_page(html, content_type=""):
 
     prices = prices or metadata_prices(markup.metadata) or markup.woocommerce_prices
     if len(prices) > 1:
-        raise ValueError("В карточке несколько цен. Выберите нужную на сайте и введите её вручную.")
+        raise BrowserPageRequired("В карточке несколько цен. Откройте нужный вариант товара в браузере.")
     if not prices:
         if markup.needs_verification:
-            raise ValueError(
-                "Сайт запросил проверку «Вы не робот?». Откройте карточку в браузере, "
-                "сохраните её через Ctrl+S и выберите «Из HTML»."
+            raise BrowserPageRequired(
+                "Сайт запросил проверку «Вы не робот?». Пройдите её в браузере и повторите добавление."
             )
-        raise ValueError("В HTML нет цены в рублях. Загрузите сохранённую карточку через «Из HTML» или введите цену вручную.")
+        raise BrowserPageRequired("В HTML нет цены в рублях. Дождитесь появления цены в браузере.")
     page_urls = (markup.canonical_url, product.get("url"), *sorted(markup.metadata["og:url"]), markup.saved_url)
     page_url = next((url for url in page_urls if isinstance(url, str) and url.startswith(("https://", "http://"))), "")
     name = product.get("name")
