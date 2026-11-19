@@ -1119,7 +1119,7 @@ QHeaderView::section {
               </widget>
              </item>
              <item>
-              <layout class="QHBoxLayout" name="offerActions" stretch="1,0">
+              <layout class="QHBoxLayout" name="offerActions" stretch="1,0,0">
                <item>
                 <widget class="QLabel" name="bestPriceLabel">
                  <property name="styleSheet">
@@ -1136,6 +1136,22 @@ QHeaderView::section {
                  </property>
                  <property name="role" stdset="0">
                   <string>muted</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="useOfferButton">
+                 <property name="enabled">
+                  <bool>false</bool>
+                 </property>
+                 <property name="text">
+                  <string>Взять в расчёт</string>
+                 </property>
+                 <property name="toolTip">
+                  <string>Перенести выбранное предложение в «Расход». Если меняется товар или единица измерения, замеры нужно ввести заново.</string>
+                 </property>
+                 <property name="role" stdset="0">
+                  <string>primary</string>
                  </property>
                 </widget>
                </item>

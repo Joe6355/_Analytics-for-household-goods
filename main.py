@@ -169,8 +169,9 @@ class HouseholdGoodsWindow(QMainWindow):
         self.loadPriceFileButton.clicked.connect(self.load_price_file)
         self.bestPriceLabel.setTextFormat(Qt.TextFormat.PlainText)
         self.addOfferButton.clicked.connect(self.add_offer)
+        self.useOfferButton.clicked.connect(self.use_selected_offer)
         self.removeOfferButton.clicked.connect(self.remove_offer)
-        self.offersTable.itemSelectionChanged.connect(self.update_remove_button)
+        self.offersTable.itemSelectionChanged.connect(self.update_offer_buttons)
         self.offerUnit.currentTextChanged.connect(self.update_offers_table)
         self.offersTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.offersTable.setColumnWidth(1, 134)
@@ -395,14 +396,44 @@ class HouseholdGoodsWindow(QMainWindow):
         self.storeInput.setFocus()
         self.statusBar().clearMessage()
 
+    def use_selected_offer(self):
+        selected = self.offersTable.selectionModel().selectedRows()
+        if not selected:
+            return
+
+        offer = self.offers[selected[0].row()]
+        unit = self.offerUnit.currentText()
+        same_product = offer.product.casefold() == self.productInput.text().strip().casefold()
+        if not same_product or unit != self.packageUnit.currentText():
+            self.measurementsInput.clear()
+
+        self.productInput.setText(offer.product)
+        self.packageInput.setText(format(offer.amount, "f").replace(".", ","))
+        self.packageUnit.setCurrentText(unit)
+        self.packagePriceInput.setText(format(offer.price, "f").replace(".", ","))
+        self.sectionList.setCurrentRow(self.sectionStack.indexOf(self.usagePage))
+
+        if not offer.product:
+            self.productInput.setFocus()
+            message = "Укажите название товара, чтобы рассчитать расход."
+        elif not self.measurementsInput.toPlainText().strip():
+            self.measurementsInput.setFocus()
+            message = "Добавьте замеры для выбранного товара."
+        else:
+            self.calculateUsageButton.setFocus()
+            message = "Предложение перенесено в расчёт расхода."
+        self.statusBar().showMessage(message, 7000)
+
     def remove_offer(self):
         selected = self.offersTable.selectionModel().selectedRows()
         if selected:
             del self.offers[selected[0].row()]
             self.update_offers_table()
 
-    def update_remove_button(self):
-        self.removeOfferButton.setEnabled(self.offersTable.selectionModel().hasSelection())
+    def update_offer_buttons(self):
+        has_selection = self.offersTable.selectionModel().hasSelection()
+        self.useOfferButton.setEnabled(has_selection)
+        self.removeOfferButton.setEnabled(has_selection)
 
     def update_offers_table(self):
         unit = self.offerUnit.currentText()
@@ -427,7 +458,7 @@ class HouseholdGoodsWindow(QMainWindow):
                 else:
                     item.setToolTip(f"<qt>{escape(text)}</qt>")
                 table.setItem(row, column, item)
-        self.update_remove_button()
+        self.update_offer_buttons()
 
         if len(self.offers) < 2:
             self.bestPriceLabel.setText("Добавьте два предложения по одному товару для сравнения.")
