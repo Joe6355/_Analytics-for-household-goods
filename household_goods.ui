@@ -1410,7 +1410,7 @@ QHeaderView::section {
                   <item>
                    <widget class="QLabel" name="forecastGraphTitle">
                     <property name="text">
-                     <string>Остаток в упаковке · эскиз</string>
+                     <string>Остаток за первые 30 дней</string>
                     </property>
                     <property name="alignment">
                      <set>Qt::AlignCenter</set>
@@ -1423,10 +1423,35 @@ QHeaderView::section {
                   <item>
                    <widget class="QLabel" name="forecastGraphPreview">
                     <property name="accessibleName">
-                     <string>Эскиз графика уменьшения остатка</string>
+                     <string>График остатка упаковки по дням</string>
+                    </property>
+                    <property name="minimumSize">
+                     <size>
+                      <width>0</width>
+                      <height>86</height>
+                     </size>
+                    </property>
+                    <property name="text">
+                     <string>График появится после расчёта</string>
                     </property>
                     <property name="alignment">
                      <set>Qt::AlignCenter</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="forecastGraphValue">
+                    <property name="textFormat">
+                     <enum>Qt::PlainText</enum>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="role" stdset="0">
+                     <string>muted</string>
                     </property>
                    </widget>
                   </item>

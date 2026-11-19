@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Аналитика товаров для дома" type="PythonConfigurationType" factoryName="Python">
+    <module name="_Analytics for household goods" />
+    <option name="IS_MODULE_SDK" value="true" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
+    <method v="2" />
+  </configuration>
+</component>

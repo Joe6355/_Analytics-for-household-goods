@@ -9,7 +9,7 @@ from pathlib import Path
 from unicodedata import normalize
 
 from PyQt6 import uic
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QLineF, QPointF, Qt
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import QApplication, QFileDialog, QHeaderView, QMainWindow, QMessageBox, QTableWidgetItem
 
@@ -20,6 +20,7 @@ from price_loader import PriceLoader
 PROJECT_DIR = Path(__file__).resolve().parent
 LOGGER = logging.getLogger(__name__)
 NUMBER_PATTERN = re.compile(r"[+-]?(?:[0-9]+(?:[.,][0-9]+)?|[.,][0-9]+)")
+FORECAST_GRAPH_DAYS = 30
 
 
 def read_number(text, error_message):
@@ -98,6 +99,44 @@ def format_quantity(value):
     return "< 0,001" if text == "0" and value > 0 else text
 
 
+def draw_remaining_graph(remaining):
+    preview = QPixmap(236, 86)
+    preview.fill(Qt.GlobalColor.transparent)
+    left, right, top, bottom = 8, 228, 6, 64
+    days = len(remaining) - 1
+    points = [
+        QPointF(left + (right - left) * day / days, bottom - (bottom - top) * float(amount / remaining[0]))
+        for day, amount in enumerate(remaining)
+    ]
+    line = QPainterPath(points[0])
+    for previous, point in zip(points, points[1:]):
+        line.lineTo(point.x(), previous.y())
+        line.lineTo(point)
+    area = QPainterPath(line)
+    area.lineTo(right, bottom)
+    area.lineTo(left, bottom)
+    area.closeSubpath()
+
+    with QPainter(preview) as painter:
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillPath(area, QColor("#e1eeeb"))
+        painter.setPen(QColor("#cedbd6"))
+        for y in (top, (top + bottom) / 2, bottom):
+            painter.drawLine(QLineF(left, y, right, y))
+        pen = QPen(QColor("#397b76"), 2)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        painter.drawPath(line)
+
+        painter.setPen(QColor("#53646b"))
+        metrics = painter.fontMetrics()
+        midpoint, endpoint = str(days // 2), f"{days} дн."
+        painter.drawText(left, 81, "0")
+        painter.drawText((left + right - metrics.horizontalAdvance(midpoint)) // 2, 81, midpoint)
+        painter.drawText(right - metrics.horizontalAdvance(endpoint), 81, endpoint)
+    return preview
+
+
 @dataclass(frozen=True)
 class Offer:
     store: str
@@ -125,21 +164,6 @@ class HouseholdGoodsWindow(QMainWindow):
         self.set_usage_unit(self.packageUnit.currentText())
 
         self.forecastProduct.setTextFormat(Qt.TextFormat.PlainText)
-        preview = QPixmap(208, 64)
-        preview.fill(Qt.GlobalColor.transparent)
-        with QPainter(preview) as painter:
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            fill = QPainterPath()
-            fill.moveTo(8, 8)
-            fill.lineTo(200, 56)
-            fill.lineTo(8, 56)
-            fill.closeSubpath()
-            painter.fillPath(fill, QColor("#e1eeeb"))
-            pen = QPen(QColor("#397b76"), 3)
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            painter.setPen(pen)
-            painter.drawLine(8, 8, 200, 56)
-        self.forecastGraphPreview.setPixmap(preview)
         forecast_header = self.forecastTable.horizontalHeader()
         forecast_header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.forecastTable.ensurePolished()
@@ -267,6 +291,9 @@ class HouseholdGoodsWindow(QMainWindow):
         self.durationValue.setText("—")
         self.durationValue.show()
         self.forecastDurationCaption.hide()
+        self.forecastGraphPreview.setText("График появится после расчёта")
+        self.forecastGraphPreview.setAccessibleDescription("")
+        self.forecastGraphValue.hide()
         self.set_forecast_rows((("—", "—", "—"),) * self.forecastTable.rowCount())
 
     def show_forecast(self):
@@ -308,8 +335,20 @@ class HouseholdGoodsWindow(QMainWindow):
         monthly_row, yearly_row = rows
         self.durationValue.setText(f"≈ {days_text} дн.")
         self.set_forecast_rows(rows)
+        self.show_remaining_graph(Fraction(amount), average, full_uses, annual_uses, unit)
         details = f"Упаковки хватит на {days_text} дн. Затраты — {monthly_row[2]} ₽ в месяц и {yearly_row[2]} ₽ в год."
         self.account.record("Прогноз", product, details)
+
+    def show_remaining_graph(self, amount, average, full_uses, annual_uses, unit):
+        remaining = [
+            amount - average * min(day * annual_uses // 365, full_uses)
+            for day in range(FORECAST_GRAPH_DAYS + 1)
+        ]
+        text = f"Через {FORECAST_GRAPH_DAYS} дней — {format_quantity(remaining[-1])} {unit}"
+        self.forecastGraphPreview.setPixmap(draw_remaining_graph(remaining))
+        self.forecastGraphPreview.setAccessibleDescription(text)
+        self.forecastGraphValue.setText(text)
+        self.forecastGraphValue.show()
 
     def load_price(self):
         self.price_loader.load(self.productLinkInput.text())
