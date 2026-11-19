@@ -1777,7 +1777,7 @@ QHeaderView::section {
     Отдушка</string>
                    </property>
                    <property name="placeholderText">
-                    <string>По одному компоненту на строку или через точку с запятой</string>
+                    <string>Компоненты через запятую, точку с запятой или с новой строки</string>
                    </property>
                   </widget>
                  </item>

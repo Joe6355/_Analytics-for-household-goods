@@ -73,6 +73,26 @@ class CardParsingTests(unittest.TestCase):
         self.assertEqual((page.name, page.price, page.package, page.price_note),
                          (name, Decimal("144.99"), (Decimal(900), "мл"), "Цена с Картой №1"))
 
+    def test_browser_reads_composition_from_the_product_section(self):
+        name = "Гель для посуды 900 мл"
+        ingredients = "Вода, анионные ПАВ (5,5%), отдушка"
+        details = (f"{name}\nЦена\n199,99 ₽\nВ корзину\nОписание\nГель для кухни\n"
+                   f"Состав\n{ingredients}\nХарактеристики\nПохожие товары\nСостав: Чужой товар")
+        page = parse_browser_product(details, "https://5ka.ru/product/gel--123/", f"{name}: купить с доставкой")
+        self.assertEqual(page.composition, ingredients)
+
+    def test_html_reads_magnit_composition_block_and_ignores_description(self):
+        schema = {
+            "@type": "Product", "name": "Гель 900 мл", "description": "Гель для мытья посуды",
+            "offers": {"@type": "Offer", "price": "239.99", "priceCurrency": "RUB"},
+        }
+        head = f'<script type="application/ld+json">{json.dumps(schema)}</script>'
+        block = ('<div data-param-name="Состав"><div>Состав</div><div>'
+                 '<section data-test-id="product-detail-parameters-full-full-context-data">'
+                 '<p>Вода, &lt;5% неионогенные ПАВ</p></section></div></div>')
+        self.assertEqual(parse_product_page(head.encode()).composition, "")
+        self.assertEqual(parse_product_page((head + block).encode()).composition, "Вода, <5% неионогенные ПАВ")
+
     def test_dixy_loads_product_price_in_rubles_and_reports_site_error(self):
         name = "Чистящее средство 500г"
         url = "https://dixy.ru/product/chistyashchee-sredstvo-2000623173/"
@@ -162,6 +182,29 @@ class ImportFlowTests(unittest.TestCase):
         self.assertEqual(window.offersTable.item(0, 3).text(), "291,00")
         self.assertEqual(window.offersTable.item(0, 4).text(), "48,50")
         self.assertIn("Цена комбо", window.offersTable.item(0, 3).toolTip())
+
+    def test_selected_product_composition_is_transferred_and_analyzed(self):
+        window = HouseholdGoodsWindow()
+        self.addCleanup(window.close)
+        name = "Гель 900 мл"
+        ingredients = "Вода, ПАВ (0,5%, неионогенные), Консервант 0,5%; вода"
+        page = ProductPage(Decimal(199), "", name, (Decimal(900), "мл"), composition=ingredients)
+        window.apply_loaded_product("Магазин", page)
+        window.offersTable.selectRow(0)
+        window.useOfferButton.click()
+        window.sectionList.setCurrentRow(window.sectionStack.indexOf(window.characteristicsPage))
+        self.assertEqual(window.characteristicsProduct.text(), name)
+        self.assertEqual(window.compositionInput.toPlainText(), ingredients)
+        window.analyzeCompositionButton.click()
+        self.assertEqual(window.componentCount.text(), "Уникальных компонентов — 3\nПовторы — Вода")
+
+        other = ProductPage(Decimal(99), "", "Другой гель 900 мл", (Decimal(900), "мл"))
+        window.apply_loaded_product("Другой магазин", other)
+        window.offersTable.selectRow(0)
+        window.useOfferButton.click()
+        self.assertEqual(window.productInput.text(), other.name)
+        self.assertEqual(window.compositionInput.toPlainText(), "")
+        self.assertEqual(window.componentCount.text(), "")
 
     def test_http_access_error_automatically_uses_browser_without_failure(self):
         for status in (401, 403, 429):

@@ -59,6 +59,14 @@ MULTIPACK_PATTERNS = (
         re.IGNORECASE,
     ),
 )
+COMPOSITION_LABELS = {"состав", "состав средства", "ингредиенты"}
+COMPOSITION_FIELD = re.compile(r"^(?:состав(?: средства)?|ингредиенты)(?:\s*:\s*(.*))?$", re.IGNORECASE)
+COMPOSITION_SECTION_END = re.compile(
+    r"^(?:описание|характеристики|отзывы|вопросы|доставка|артикул|о товаре|"
+    r"способ применения|меры предосторожности|подробнее|показать|перейти|раскрыть|свернуть|"
+    r"нет (?:данных|информации)|не указан[оа]?)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -68,6 +76,7 @@ class ProductPage:
     name: str
     package: tuple[Decimal, str] | None
     price_note: str = ""
+    composition: str = ""
 
 
 class BrowserPageRequired(ValueError):
@@ -132,6 +141,9 @@ class StoreMarkup(HTMLParser):
         self.labels = set()
         self.text_tag = ""
         self.tag_text = []
+        self.composition_depth = 0
+        self.composition_text = None
+        self.compositions = set()
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
@@ -142,6 +154,16 @@ class StoreMarkup(HTMLParser):
         if tag in ("h1", "label"):
             self.text_tag = tag
             self.tag_text = []
+        if tag == "div":
+            if self.composition_depth:
+                self.composition_depth += 1
+            elif is_composition_label(attributes.get("data-param-name")):
+                self.composition_depth = 1
+        if (self.composition_depth and tag == "section"
+                and attributes.get("data-test-id") == "product-detail-parameters-full-full-context-data"):
+            self.composition_text = []
+        if self.composition_text is not None and tag in ("p", "li", "br"):
+            self.composition_text.append("\n")
         if tag == "script":
             script_type = (attributes.get("type") or "").partition(";")[0].strip().lower()
             if script_type == "application/ld+json":
@@ -171,6 +193,8 @@ class StoreMarkup(HTMLParser):
             self.script.append(data)
         if self.amount_text is not None:
             self.amount_text.append(data)
+        if self.composition_text is not None:
+            self.composition_text.append(data)
         if self.text_tag and data.strip():
             self.tag_text.append(data)
 
@@ -179,6 +203,11 @@ class StoreMarkup(HTMLParser):
             self.saved_url = saved[1]
 
     def handle_endtag(self, tag):
+        if tag == "section" and self.composition_text is not None:
+            self.compositions.add(clean_composition("".join(self.composition_text)))
+            self.composition_text = None
+        if tag == "div" and self.composition_depth:
+            self.composition_depth -= 1
         if tag == self.text_tag:
             text = " ".join(" ".join(self.tag_text).split())
             if text:
@@ -278,16 +307,20 @@ def package_amount(match):
     return None
 
 
-def package_labels(product, labels):
-    yield from labels
+def product_properties(product):
     properties = product.get("additionalProperty", [])
     if isinstance(properties, dict):
         properties = [properties]
     if not isinstance(properties, list):
         return
     for prop in properties:
-        if not isinstance(prop, dict) or not isinstance(prop.get("name"), str):
-            continue
+        if isinstance(prop, dict) and isinstance(prop.get("name"), str):
+            yield prop
+
+
+def package_labels(product, labels):
+    yield from labels
+    for prop in product_properties(product):
         value = prop.get("value")
         if type(value) not in (str, int, Decimal):
             continue
@@ -296,6 +329,37 @@ def package_labels(product, labels):
         if isinstance(unit, str) and PRICE_TEXT.fullmatch(value):
             value = f"{value} {unit}"
         yield f"{prop['name']} {value}"
+
+
+def is_composition_label(value):
+    return isinstance(value, str) and value.strip().removesuffix(":").strip().casefold() in COMPOSITION_LABELS
+
+
+def clean_composition(value):
+    if not isinstance(value, str):
+        return ""
+    lines = [" ".join(line.split()) for line in value.splitlines()]
+    text = "\n".join(line for line in lines if line)
+    if len(text) > 4000 or COMPOSITION_SECTION_END.match(text) or not any(letter.isalpha() for letter in text):
+        return ""
+    return text
+
+
+def single_composition(values):
+    candidates = {value for value in values if value}
+    return next(iter(candidates)) if len(candidates) == 1 else ""
+
+
+def browser_composition(details):
+    lines = details.splitlines()
+    values = []
+    for label, next_line in zip(lines, lines[1:] + [""]):
+        match = COMPOSITION_FIELD.fullmatch(label)
+        if match:
+            candidate = match[1] or next_line
+            if not COMPOSITION_FIELD.fullmatch(candidate):
+                values.append(clean_composition(candidate))
+    return single_composition(values)
 
 
 def find_multipack(name):
@@ -393,6 +457,7 @@ def parse_browser_product(text, address, title):
         raise ValueError("Дождитесь появления названия и цены товара в браузере.")
     details = "\n".join(lines[lines.index(anchor) + 1:])
     card = RECOMMENDATIONS.split(details, maxsplit=1)[0]
+    composition = browser_composition(card)
     if re.search(r"^(?:Нет в наличии|Товар закончился|Товар недоступен|Товар распродан)\b", card, re.MULTILINE | re.IGNORECASE):
         raise ProductUnavailable("Товар недоступен. Проверьте наличие на сайте магазина.")
     if host == "lenta.com":
@@ -448,7 +513,7 @@ def parse_browser_product(text, address, title):
             if unit.strip() in PACKAGE_UNITS and PRICE_TEXT.fullmatch(value):
                 value = f"{value} {unit.strip()}"
             labels.append(f"{key} {value}")
-    return ProductPage(price, address, name, find_package(name, labels), price_note)
+    return ProductPage(price, address, name, find_package(name, labels), price_note, composition)
 
 
 def parse_product_page(html, content_type=""):
@@ -497,4 +562,8 @@ def parse_product_page(html, content_type=""):
     for names in (markup.headings, markup.metadata["og:title"]):
         if not name and len(names) == 1:
             name = next(iter(names))
-    return ProductPage(prices.pop(), page_url, name, find_package(name, package_labels(product, markup.labels)))
+    structured_comp = (clean_composition(prop.get("value")) for prop in product_properties(product)
+                       if is_composition_label(prop["name"]))
+    composition = single_composition([*markup.compositions, *structured_comp])
+    return ProductPage(prices.pop(), page_url, name, find_package(name, package_labels(product, markup.labels)),
+                       composition=composition)

@@ -137,6 +137,22 @@ def draw_remaining_graph(remaining):
     return preview
 
 
+def composition_entries(text):
+    start = depth = 0
+    for index, char in enumerate(text):
+        if char in "([":
+            depth += 1
+        elif char in ")]":
+            depth = max(0, depth - 1)
+        if depth:
+            continue
+        decimal_comma = char == "," and 0 < index < len(text) - 1 and text[index - 1].isdigit() and text[index + 1].isdigit()
+        if char in ",;\n" and not decimal_comma:
+            yield text[start:index]
+            start = index + 1
+    yield text[start:]
+
+
 @dataclass(frozen=True)
 class Offer:
     store: str
@@ -144,6 +160,7 @@ class Offer:
     price: Decimal
     product: str = ""
     price_note: str = ""
+    composition: str = ""
 
     @property
     def price_per_unit(self):
@@ -181,6 +198,7 @@ class HouseholdGoodsWindow(QMainWindow):
         self.offers = []
         self.offer_name = ""
         self.offer_price_note = ""
+        self.offer_composition = ""
         self.pricesProduct.hide()
         self.price_loader = PriceLoader(self)
         self.price_loader.started.connect(lambda: self.set_price_loading(True))
@@ -203,9 +221,11 @@ class HouseholdGoodsWindow(QMainWindow):
 
         self.characteristicsProduct.setTextFormat(Qt.TextFormat.PlainText)
         self.componentCount.setTextFormat(Qt.TextFormat.PlainText)
+        self.imported_composition = ""
         self.compositionInput.clear()
         self.componentCount.clear()
         self.compositionInput.textChanged.connect(self.componentCount.clear)
+        self.productInput.textEdited.connect(self.clear_imported_composition)
         self.analyzeCompositionButton.clicked.connect(self.analyze_composition)
         self.testCountInput.setValue(0)
         self.successCountInput.setValue(0)
@@ -383,6 +403,7 @@ class HouseholdGoodsWindow(QMainWindow):
 
         self.offer_name = product.name
         self.offer_price_note = product.price_note
+        self.offer_composition = product.composition
         amount_text = format(amount, "f").replace(".", ",") if amount is not None else ""
         price_text = format(product.price, "f").replace(".", ",")
         self.storeInput.setText(store)
@@ -421,13 +442,14 @@ class HouseholdGoodsWindow(QMainWindow):
             QMessageBox.warning(self, "Проверьте данные", str(error))
             return
 
-        self.offers.append(Offer(store, amount, price, self.offer_name, self.offer_price_note))
+        self.offers.append(Offer(store, amount, price, self.offer_name, self.offer_price_note, self.offer_composition))
         self.offers.sort(key=lambda offer: offer.price_per_unit)
         self.update_offers_table()
         if len(self.offers) >= 2:
             self.account.record("Сравнение цен", self.offer_name, self.bestPriceLabel.text())
         self.offer_name = ""
         self.offer_price_note = ""
+        self.offer_composition = ""
         self.productLinkInput.clear()
         self.storeInput.clear()
         self.offerPackageInput.clear()
@@ -446,6 +468,12 @@ class HouseholdGoodsWindow(QMainWindow):
         if not same_product or unit != self.packageUnit.currentText():
             self.measurementsInput.clear()
 
+        current_composition = self.compositionInput.toPlainText()
+        can_replace_composition = not current_composition.strip() or current_composition == self.imported_composition
+        if not same_product or (offer.composition and can_replace_composition):
+            self.compositionInput.setPlainText(offer.composition)
+            self.imported_composition = offer.composition
+
         self.productInput.setText(offer.product)
         self.packageInput.setText(format(offer.amount, "f").replace(".", ","))
         self.packageUnit.setCurrentText(unit)
@@ -461,7 +489,14 @@ class HouseholdGoodsWindow(QMainWindow):
         else:
             self.calculateUsageButton.setFocus()
             message = "Предложение перенесено в расчёт расхода."
+        if self.imported_composition and self.compositionInput.toPlainText() == self.imported_composition:
+            message += " Состав доступен во вкладке «Характеристики»."
         self.statusBar().showMessage(message, 7000)
+
+    def clear_imported_composition(self):
+        if self.imported_composition and self.imported_composition == self.compositionInput.toPlainText():
+            self.compositionInput.clear()
+        self.imported_composition = ""
 
     def remove_offer(self):
         selected = self.offersTable.selectionModel().selectedRows()
@@ -532,8 +567,7 @@ class HouseholdGoodsWindow(QMainWindow):
     def analyze_composition(self):
         components = {}
         repeated = {}
-        text = self.compositionInput.toPlainText().replace(";", "\n")
-        for entry in text.splitlines():
+        for entry in composition_entries(self.compositionInput.toPlainText()):
             component = " ".join(normalize("NFC", entry).split())
             if not component:
                 continue
