@@ -109,8 +109,31 @@ class CardParsingTests(unittest.TestCase):
         with self.assertRaises(BrowserPageRequired):
             parse_product_page(b"<html><h1>Product</h1></html>")
 
-    def test_multi_pack_is_not_silently_treated_as_one_bottle(self):
-        self.assertIsNone(find_package("Гель 2 шт по 900 мл", []))
+    def test_multipack_uses_total_volume_or_weight(self):
+        cases = (
+            ("Гель 2 шт по 900 мл", Decimal(1800), "мл"),
+            ("Fairy Pure&Clean 3 х 900 мл. (2,7л)", Decimal(2700), "мл"),
+            ("Порошок 1,25 кг × 2 шт.", Decimal(2500), "г"),
+        )
+        for name, total, unit in cases:
+            with self.subTest(name=name):
+                self.assertEqual(find_package(name, []), (total, unit))
+
+    def test_ambiguous_pack_size_is_left_unset(self):
+        cases = ("Гель 450–900 мл", "Гель 500+250 мл", "Гель 2 × 3 × 900 мл", "Гель 2 × 900 мл (1,5 л)",
+                 "Гель 900 мл × 2 кг", "Гель от 2 × 900 мл", "Гель 2 × 900 мл + губка")
+        for name in cases:
+            with self.subTest(name=name):
+                self.assertIsNone(find_package(name, []))
+
+    def test_yandex_multipack_uses_price_of_whole_set(self):
+        name = "Средство для мытья посуды Fairy Pure&Clean 3 х 900 мл. (2,7л)"
+        page = parse_browser_product(
+            f"{name}\n226 ₽/шт\n678 ₽\nПэй\nОбъем\n900 мл\nВ корзину",
+            "https://market.yandex.ru/card/fairy/4770204134", f"{name} — купить в Яндекс Маркете",
+        )
+        self.assertEqual((page.price, page.package, page.price_note),
+                         (Decimal(678), (Decimal(2700), "мл"), "Цена с Яндекс Пэй"))
 
     def test_aliexpress_item_prefix_is_supported_but_catalog_is_not(self):
         self.assertTrue(is_store_card("https://aliexpress.ru/item/0_1005012259382305.html"))

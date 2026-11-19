@@ -19,7 +19,7 @@ BROWSER_PRICE = re.compile(
     rf"(?<![\w.,+−-])(?P<price>{PRICE_TEXT.pattern})\s*(?:₽|руб(?:\.|ля|лей)?(?!\w))",
     re.IGNORECASE,
 )
-OZON_UNIT_PRICE = re.compile(r"[ \t]*(?:/|за[ \t]+)[ \t]*(?:[0-9]+[ \t]*)?(?:мл|г|кг|л)\b", re.IGNORECASE)
+UNIT_PRICE = re.compile(r"\s*(?:/|за\s+)\s*(?:[0-9]+\s*)?(?:мл|г|кг|л|шт)\b", re.IGNORECASE)
 SPLIT_RUBLE_PRICE = re.compile(r"(?<![\d.,])([0-9]{1,3}(?: [0-9]{3}){1,2}|[0-9]{1,9})\s+([0-9]{2})\s*₽")
 RECOMMENDATIONS = re.compile(
     r"^(?:Рекомендуем также|Покупают вместе|Подобрали для вас|Похожие товары|С этим товаром покупают|Берут вместе)$",
@@ -45,8 +45,19 @@ PACKAGE_AMOUNT = re.compile(
 )
 PACKAGE_LABEL = re.compile(rf"(?P<label>{'|'.join(PACKAGE_LABELS)})[\s:]+(?P<value>[0-9].*)")
 PACKAGE_RANGE_OR_SET = re.compile(
-    r"\d\s*[-–—/]\s*\d|(?:[×*]|(?<![а-яёa-z])[xх])\s*\d|\d\s*(?:шт\.?\s*)?по\s+\d",
+    r"\d\s*[-–—/+]\s*\d|(?:[×*]|(?<![а-яёa-z])[xх])\s*\d|\d\s*(?:шт\.?\s*)?по\s+\d",
     re.IGNORECASE,
+)
+MEASURE_UNITS = "|".join(symbol for symbol, (unit, _) in PACKAGE_UNITS.items() if unit != "шт.")
+MEASURE = rf"(?P<amount>{PRICE_TEXT.pattern})\s*(?P<unit>{MEASURE_UNITS})(?!\w)"
+MULTIPACK_START = r"(?<![\w.,+−–—/-])"
+MULTIPACK_COUNT = r"(?P<count>[0-9]{1,5})"
+MULTIPACK_PATTERNS = (
+    re.compile(rf"{MULTIPACK_START}{MULTIPACK_COUNT}\s*(?:[×xх*]\s*|шт\.?\s+по\s+){MEASURE}", re.IGNORECASE),
+    re.compile(
+        rf"{MULTIPACK_START}{MEASURE}\s*[×xх*]\s*{MULTIPACK_COUNT}(?:\s*шт\.?(?!\w)|(?=\s*(?:$|[)])))",
+        re.IGNORECASE,
+    ),
 )
 
 
@@ -287,9 +298,36 @@ def package_labels(product, labels):
         yield f"{prop['name']} {value}"
 
 
+def find_multipack(name):
+    matches = [match for pattern in MULTIPACK_PATTERNS for match in pattern.finditer(name)]
+    if len(matches) != 1:
+        return None
+
+    match = matches[0]
+    before, after = name[:match.start()], name[match.end():]
+    remainder = f"{before} {after}"
+    if ("+" in remainder or PACKAGE_RANGE_OR_SET.search(remainder)
+            or re.search(r"(?:\d\s*[×xх*/−–—-]|\b(?:от|до))\s*$", before, re.IGNORECASE)
+            or re.match(r"\s*[×xх*/−–—-]\s*\d", after, re.IGNORECASE)):
+        return None
+
+    count = int(match["count"])
+    size = package_amount(match)
+    if count <= 0 or not size:
+        return None
+
+    amount, unit = size
+    total = (amount * count).normalize(), unit
+    # В названии иногда дублируют общий объём: «3 × 900 мл (2,7 л)».
+    allowed = {total, (Decimal(count), "шт.")}
+    if any(package_amount(extra) not in allowed for extra in PACKAGE_AMOUNT.finditer(remainder)):
+        return None
+    return total
+
+
 def find_package(name, labels):
     if PACKAGE_RANGE_OR_SET.search(name):
-        return None
+        return find_multipack(name)
     packages = {amount for match in PACKAGE_AMOUNT.finditer(name) if (amount := package_amount(match)) is not None}
     if len(packages - {(Decimal(1), "шт.")}) > 1:
         return None
@@ -383,8 +421,9 @@ def parse_browser_product(text, address, title):
     if host in {"5ka.ru", "lenta.com"}:
         # Рубли и копейки на сайтах могут находиться в разных текстовых узлах.
         card = SPLIT_RUBLE_PRICE.sub(r"\1,\2 ₽", card)
+    skip_unit_prices = host == "ozon.ru" or host == "market.yandex.ru" and PACKAGE_RANGE_OR_SET.search(name)
     match = next((match for match in BROWSER_PRICE.finditer(card)
-                  if host != "ozon.ru" or not OZON_UNIT_PRICE.match(card, match.end())), None)
+                  if not skip_unit_prices or not UNIT_PRICE.match(card, match.end())), None)
     price = ruble_price(match["price"], "RUB") if match else None
     if price is None:
         raise ValueError("Дождитесь появления цены товара в браузере.")
