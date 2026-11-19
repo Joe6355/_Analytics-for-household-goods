@@ -10,9 +10,9 @@ from pathlib import Path
 from unicodedata import normalize
 
 from PyQt6 import uic
-from PyQt6.QtCore import QLineF, QPointF, QSignalBlocker, Qt, QUrl
+from PyQt6.QtCore import QLineF, QPointF, QSignalBlocker, QTimer, Qt, QUrl
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
-from PyQt6.QtWidgets import QApplication, QFileDialog, QHeaderView, QInputDialog, QMainWindow, QMessageBox, QTableWidgetItem
+from PyQt6.QtWidgets import QApplication, QFileDialog, QHeaderView, QInputDialog, QMainWindow, QMenu, QMessageBox, QTableWidgetItem
 
 from account_client import AccountController
 from price_loader import PriceLoader
@@ -23,6 +23,7 @@ PROJECT_DIR = Path(__file__).resolve().parent
 LOGGER = logging.getLogger(__name__)
 NUMBER_PATTERN = re.compile(r"[+-]?(?:[0-9]+(?:[.,][0-9]+)?|[.,][0-9]+)")
 FORECAST_GRAPH_DAYS = 30
+WORKSPACE_SAVE_DELAY_MS = 500
 
 
 def read_number(text, error_message):
@@ -172,6 +173,7 @@ class HouseholdGoodsWindow(QMainWindow):
         uic.loadUi(str(PROJECT_DIR / "household_goods.ui"), self)
         self.local_workspace = LocalWorkspace(Path(state_path)) if state_path is not None else None
         self.workspace_state = WorkspaceState()
+        self.workspace_save_timer = None
         load_failed = False
         if self.local_workspace is not None:
             try:
@@ -219,6 +221,10 @@ class HouseholdGoodsWindow(QMainWindow):
         self.loadPriceFileButton.clicked.connect(self.load_price_file)
         self.bestPriceLabel.setTextFormat(Qt.TextFormat.PlainText)
         self.newComparisonButton.clicked.connect(self.create_comparison)
+        comparison_menu = QMenu(self.manageComparisonButton)
+        comparison_menu.addAction("Переименовать", self.rename_comparison)
+        self.delete_comparison_action = comparison_menu.addAction("Удалить список", self.delete_comparison)
+        self.manageComparisonButton.setMenu(comparison_menu)
         self.comparisonSelector.currentIndexChanged.connect(self.switch_comparison)
         self.addOfferButton.clicked.connect(self.add_offer)
         self.useOfferButton.clicked.connect(self.use_selected_offer)
@@ -251,6 +257,13 @@ class HouseholdGoodsWindow(QMainWindow):
         self.demoNote.hide()
         self.sectionStack.currentChanged.connect(self.update_page)
         self.restore_draft()
+        if self.local_workspace is not None:
+            self.workspace_save_timer = QTimer(self)
+            self.workspace_save_timer.setSingleShot(True)
+            self.workspace_save_timer.setInterval(WORKSPACE_SAVE_DELAY_MS)
+            self.workspace_save_timer.timeout.connect(self.autosave_workspace)
+            for _, _, _, changed in self.draft_bindings():
+                changed.connect(self.schedule_workspace_save)
         self.update_page()
         if load_failed:
             self.statusBar().showMessage("Не удалось открыть локальные сравнения и замеры. Файл данных сохранён.", 12000)
@@ -268,18 +281,53 @@ class HouseholdGoodsWindow(QMainWindow):
             self.comparisonSelector.clear()
             self.comparisonSelector.addItems([comparison.name for comparison in self.workspace_state.comparisons])
             self.comparisonSelector.setCurrentIndex(self.workspace_state.active)
+        self.delete_comparison_action.setEnabled(len(self.workspace_state.comparisons) > 1)
         self.switch_comparison(self.workspace_state.active)
+
+    def comparison_index(self, name):
+        return next((index for index, comparison in enumerate(self.workspace_state.comparisons)
+                     if comparison.name.casefold() == name.casefold()), None)
 
     def create_comparison(self):
         name, accepted = QInputDialog.getText(self, "Новый список сравнения", "Название товара")
         if not accepted or not (name := " ".join(name.split())):
             return
-        for index, comparison in enumerate(self.workspace_state.comparisons):
-            if comparison.name.casefold() == name.casefold():
-                self.comparisonSelector.setCurrentIndex(index)
-                return
+        existing = self.comparison_index(name)
+        if existing is not None:
+            self.comparisonSelector.setCurrentIndex(existing)
+            return
         self.workspace_state.comparisons.append(Comparison(name))
         self.workspace_state.active = len(self.workspace_state.comparisons) - 1
+        self.load_comparison_selector()
+
+    def rename_comparison(self):
+        if self.price_loading:
+            return
+        name, accepted = QInputDialog.getText(self, "Переименовать список", "Название товара", text=self.comparison.name)
+        if not accepted or not (name := " ".join(name.split())) or name == self.comparison.name:
+            return
+        existing = self.comparison_index(name)
+        if existing is not None and existing != self.workspace_state.active:
+            self.statusBar().showMessage("Список с таким названием уже есть.", 5000)
+            return
+        self.comparison.name = name
+        self.comparisonSelector.setItemText(self.workspace_state.active, name)
+        self.schedule_workspace_save()
+
+    def delete_comparison(self):
+        comparisons = self.workspace_state.comparisons
+        if self.price_loading or len(comparisons) <= 1:
+            return
+        if self.offers:
+            answer = QMessageBox.question(
+                self, "Удаление списка", "Удалить выбранный список вместе с его предложениями?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Cancel,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        del comparisons[self.workspace_state.active]
+        self.workspace_state.active = min(self.workspace_state.active, len(comparisons) - 1)
         self.load_comparison_selector()
 
     def switch_comparison(self, index):
@@ -297,33 +345,47 @@ class HouseholdGoodsWindow(QMainWindow):
 
     def draft_bindings(self):
         return (
-            ("product", self.productInput.text, self.productInput.setText),
-            ("package", self.packageInput.text, self.packageInput.setText),
-            ("unit", self.packageUnit.currentText, self.packageUnit.setCurrentText),
-            ("price", self.packagePriceInput.text, self.packagePriceInput.setText),
-            ("measurements", self.measurementsInput.toPlainText, self.measurementsInput.setPlainText),
-            ("frequency", self.frequencyInput.value, self.frequencyInput.setValue),
-            ("period", self.frequencyPeriod.currentText, self.frequencyPeriod.setCurrentText),
-            ("composition", self.compositionInput.toPlainText, self.compositionInput.setPlainText),
-            ("tests", self.testCountInput.value, self.testCountInput.setValue),
-            ("successes", self.successCountInput.value, self.successCountInput.setValue),
+            ("product", self.productInput.text, self.productInput.setText, self.productInput.textChanged),
+            ("package", self.packageInput.text, self.packageInput.setText, self.packageInput.textChanged),
+            ("unit", self.packageUnit.currentText, self.packageUnit.setCurrentText, self.packageUnit.currentTextChanged),
+            ("price", self.packagePriceInput.text, self.packagePriceInput.setText, self.packagePriceInput.textChanged),
+            ("measurements", self.measurementsInput.toPlainText, self.measurementsInput.setPlainText, self.measurementsInput.textChanged),
+            ("frequency", self.frequencyInput.value, self.frequencyInput.setValue, self.frequencyInput.valueChanged),
+            ("period", self.frequencyPeriod.currentText, self.frequencyPeriod.setCurrentText, self.frequencyPeriod.currentTextChanged),
+            ("composition", self.compositionInput.toPlainText, self.compositionInput.setPlainText, self.compositionInput.textChanged),
+            ("tests", self.testCountInput.value, self.testCountInput.setValue, self.testCountInput.valueChanged),
+            ("successes", self.successCountInput.value, self.successCountInput.setValue, self.successCountInput.valueChanged),
         )
 
     def restore_draft(self):
         saved = self.workspace_state.draft
-        for key, read, write in self.draft_bindings():
+        for key, read, write, _ in self.draft_bindings():
             value = saved.get(key)
             if type(value) is type(read()):
                 write(value)
         if saved.get("imported_composition") == self.compositionInput.toPlainText():
             self.imported_composition = self.compositionInput.toPlainText()
 
+    def schedule_workspace_save(self):
+        if self.workspace_save_timer is not None:
+            self.workspace_save_timer.start()
+
+    def save_workspace(self):
+        self.workspace_state.draft = {key: read() for key, read, _, _ in self.draft_bindings()}
+        self.workspace_state.draft["imported_composition"] = self.imported_composition
+        self.local_workspace.save(self.workspace_state)
+
+    def autosave_workspace(self):
+        try:
+            self.save_workspace()
+        except OSError as error:
+            self.statusBar().showMessage(f"Не удалось сохранить сравнения и замеры. {error}", 9000)
+
     def closeEvent(self, event):
-        if self.local_workspace is not None:
-            self.workspace_state.draft = {key: read() for key, read, _ in self.draft_bindings()}
-            self.workspace_state.draft["imported_composition"] = self.imported_composition
+        if self.workspace_save_timer is not None:
+            self.workspace_save_timer.stop()
             try:
-                self.local_workspace.save(self.workspace_state)
+                self.save_workspace()
             except OSError as error:
                 reply = QMessageBox.question(
                     self, "Сохранение данных",
@@ -484,7 +546,7 @@ class HouseholdGoodsWindow(QMainWindow):
         self.price_loading = loading
         for field in (self.productLinkInput, self.loadPriceButton, self.loadPriceFileButton, self.addOfferButton,
                       self.storeInput, self.offerPackageInput, self.offerPriceInput,
-                      self.comparisonSelector, self.newComparisonButton):
+                      self.comparisonSelector, self.newComparisonButton, self.manageComparisonButton):
             field.setEnabled(not loading)
         self.offerUnit.setEnabled(not loading and not self.offers)
         self.update_offer_buttons()
@@ -709,6 +771,7 @@ class HouseholdGoodsWindow(QMainWindow):
                     item.setToolTip(f"<qt>{escape(text)}</qt>")
                 table.setItem(row, column, item)
         self.update_offer_buttons()
+        self.schedule_workspace_save()
 
         if len(self.offers) < 2:
             self.bestPriceLabel.setText("Добавьте два предложения по одному товару для сравнения.")

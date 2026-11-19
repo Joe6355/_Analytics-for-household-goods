@@ -7,7 +7,8 @@ from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtTest import QTest
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from main import HouseholdGoodsWindow
 from store_page import ProductPage
@@ -91,6 +92,56 @@ class WorkspaceTests(unittest.TestCase):
             warning.assert_called_once()
         self.assertEqual(window.offers[0].price, Decimal(199))
         self.assertTrue(window.refreshOfferButton.isEnabled())
+
+    def test_autosave_records_edits_before_the_window_is_closed(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "workspace.json"
+            window = HouseholdGoodsWindow(state_path=path)
+            try:
+                self.new_comparison(window, "Fairy")
+                window.apply_loaded_product("Магазин", ProductPage(Decimal(239), CARD_URL, "Fairy", (Decimal(900), "мл")))
+                window.measurementsInput.setPlainText("8,5\n9,5")
+                QTest.qWait(window.workspace_save_timer.interval() + 250)
+
+                saved = LocalWorkspace(path).load()
+                active = saved.comparisons[saved.active]
+                self.assertEqual((active.name, active.offers[0].price), ("Fairy", Decimal(239)))
+                self.assertEqual(saved.draft["measurements"], "8,5\n9,5")
+
+                window.measurementsInput.setPlainText("9\n10")
+                QTest.qWait(window.workspace_save_timer.interval() + 250)
+                self.assertEqual(LocalWorkspace(path).load().draft["measurements"], "9\n10")
+            finally:
+                window.close()
+
+    def test_list_actions_keep_other_lists_and_respect_cancel(self):
+        window = HouseholdGoodsWindow()
+        self.addCleanup(window.close)
+        self.new_comparison(window, "Fairy")
+        window.apply_loaded_product("Первый магазин", ProductPage(Decimal(239), CARD_URL, "Fairy", (Decimal(900), "мл")))
+        self.new_comparison(window, "Губки")
+        window.apply_loaded_product("Второй магазин", ProductPage(Decimal(80), "", "Губки", (Decimal(4), "шт.")))
+        window.comparisonSelector.setCurrentIndex(1)
+        window.offersTable.selectRow(0)
+
+        rename = window.manageComparisonButton.menu().actions()[0]
+        with patch("main.QInputDialog.getText", return_value=("  Fairy Лимон   ", True)):
+            rename.trigger()
+        self.assertEqual(window.comparisonSelector.currentText(), "Fairy Лимон")
+        self.assertEqual(window.offers[0].store, "Первый магазин")
+        self.assertEqual(window.selected_offer_index(), 0)
+        with patch("main.QInputDialog.getText", return_value=("губки", True)):
+            rename.trigger()
+        self.assertEqual(window.comparisonSelector.currentText(), "Fairy Лимон")
+
+        with patch("main.QMessageBox.question", return_value=QMessageBox.StandardButton.Cancel):
+            window.delete_comparison_action.trigger()
+        self.assertEqual(window.comparisonSelector.count(), 3)
+        with patch("main.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes):
+            window.delete_comparison_action.trigger()
+        self.assertEqual(window.comparisonSelector.count(), 2)
+        self.assertEqual(window.comparisonSelector.currentText(), "Губки")
+        self.assertEqual((window.offerUnit.currentText(), window.offers[0].store), ("шт.", "Второй магазин"))
 
     def test_success_cost_uses_total_spent_on_trials(self):
         window = HouseholdGoodsWindow()

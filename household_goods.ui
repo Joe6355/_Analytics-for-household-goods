@@ -834,7 +834,7 @@ QHeaderView::section {
               </widget>
              </item>
              <item>
-              <layout class="QHBoxLayout" name="comparisonControls" stretch="0,1,0">
+              <layout class="QHBoxLayout" name="comparisonControls" stretch="0,1,0,0">
                <item>
                 <widget class="QLabel" name="comparisonLabel">
                  <property name="text">
@@ -864,6 +864,16 @@ QHeaderView::section {
                 <widget class="QPushButton" name="newComparisonButton">
                  <property name="text">
                   <string>Новый список</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="manageComparisonButton">
+                 <property name="text">
+                  <string>Действия</string>
+                 </property>
+                 <property name="accessibleName">
+                  <string>Действия со списком сравнения</string>
                  </property>
                 </widget>
                </item>
