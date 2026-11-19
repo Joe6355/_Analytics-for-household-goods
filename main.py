@@ -505,9 +505,27 @@ class HouseholdGoodsWindow(QMainWindow):
             self.update_offers_table()
 
     def update_offer_buttons(self):
-        has_selection = self.offersTable.selectionModel().hasSelection()
-        self.useOfferButton.setEnabled(has_selection)
-        self.removeOfferButton.setEnabled(has_selection)
+        selected = self.offersTable.selectionModel().selectedRows()
+        row = selected[0].row() if selected else -1
+        offer = self.offers[row] if 0 <= row < len(self.offers) else None
+        self.useOfferButton.setEnabled(offer is not None)
+        self.removeOfferButton.setEnabled(offer is not None)
+        self.update_offer_difference(offer)
+
+    def update_offer_difference(self, offer):
+        if offer is None or len(self.offers) < 2:
+            self.offerDifferenceLabel.hide()
+            return
+
+        difference = (offer.price_per_unit - self.offers[0].price_per_unit) * Fraction(offer.amount)
+        if 0 < difference < Fraction(1, 100):
+            money = "меньше 0,01 ₽"
+        else:
+            money = f"{format_number(difference, 2)} ₽"
+        amount = format(offer.amount, "f").replace(".", ",")
+        unit = self.offerUnit.currentText()
+        self.offerDifferenceLabel.setText(f"Разница с лучшей ценой за {amount} {unit} — {money}.")
+        self.offerDifferenceLabel.show()
 
     def update_offers_table(self):
         unit = self.offerUnit.currentText()

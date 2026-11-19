@@ -1167,6 +1167,22 @@ QHeaderView::section {
                </item>
               </layout>
              </item>
+             <item>
+              <widget class="QLabel" name="offerDifferenceLabel">
+               <property name="textFormat">
+                <enum>Qt::PlainText</enum>
+               </property>
+               <property name="text">
+                <string>Разница с лучшей ценой за 500 мл — 13,00 ₽.</string>
+               </property>
+               <property name="wordWrap">
+                <bool>true</bool>
+               </property>
+               <property name="role" stdset="0">
+                <string>muted</string>
+               </property>
+              </widget>
+             </item>
             </layout>
            </widget>
            <widget class="QWidget" name="forecastPage">
