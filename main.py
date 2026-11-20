@@ -15,6 +15,7 @@ from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import QApplication, QFileDialog, QHeaderView, QInputDialog, QMainWindow, QMenu, QMessageBox, QTableWidgetItem
 
 from account_client import AccountController
+from lr5_Dsv_2_personal_account import PersonalAccountCSV
 from price_loader import PriceLoader
 from workspace_state import Comparison, LocalWorkspace, Offer, WorkspaceState
 
@@ -254,6 +255,7 @@ class HouseholdGoodsWindow(QMainWindow):
         self.update_effectiveness()
 
         self.account = AccountController(self)
+        self.personal_account_csv = PersonalAccountCSV(self)
         self.demoNote.hide()
         self.sectionStack.currentChanged.connect(self.update_page)
         self.restore_draft()

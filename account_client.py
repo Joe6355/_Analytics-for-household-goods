@@ -21,6 +21,8 @@ class AccountController(QObject):
         self.api_url = QUrl(os.environ.get("HOUSEHOLD_API_URL", DEFAULT_API_URL).strip(), QUrl.ParsingMode.StrictMode)
         self.token = None
         self.history_request = 0
+        self.server_rows = []
+        self.csv_rows = None
 
         window.accountStatus.setTextFormat(Qt.TextFormat.PlainText)
         window.historyHint.setTextFormat(Qt.TextFormat.PlainText)
@@ -136,6 +138,8 @@ class AccountController(QObject):
         window.signInButton.setText("Выйти" if signed_in else "Войти")
         window.signInTitle.setText("Аккаунт" if signed_in else "Вход")
         window.accountStatus.setText("" if signed_in else "Для регистрации нужен пароль от 15 символов.")
+        self.server_rows = []
+        self.csv_rows = None
         window.historyTable.setRowCount(0)
         window.historyHint.setText("" if signed_in else "История появится после входа.")
 
@@ -146,7 +150,7 @@ class AccountController(QObject):
 
     def refresh_history(self):
         token = self.token
-        if not token:
+        if not token or self.csv_rows is not None:
             return
         self.history_request += 1
         request_number = self.history_request
@@ -158,7 +162,8 @@ class AccountController(QObject):
             if status == 401:
                 self.end_expired_session()
             elif error:
-                self.window.historyHint.setText(error)
+                if self.csv_rows is None:
+                    self.window.historyHint.setText(error)
             else:
                 self.show_history(data.get("entries"))
 
@@ -166,23 +171,47 @@ class AccountController(QObject):
 
     def show_history(self, entries):
         if not isinstance(entries, list) or not all(isinstance(entry, dict) for entry in entries):
-            self.window.historyHint.setText("Сервер вернул историю в неизвестном формате.")
+            if self.csv_rows is None:
+                self.window.historyHint.setText("Сервер вернул историю в неизвестном формате.")
             return
 
-        table = self.window.historyTable
-        table.setRowCount(len(entries))
-        for row, entry in enumerate(entries):
+        rows = []
+        for entry in entries:
             created_at = QDateTime.fromString(str(entry.get("created_at", "")), Qt.DateFormat.ISODate)
             date = created_at.toLocalTime().toString("dd.MM.yyyy HH:mm") if created_at.isValid() else "—"
             product = str(entry.get("product", "—"))
             action = str(entry.get("action", "—"))
             details = str(entry.get("details", ""))
+            rows.append((date, product, action, details))
+        self.server_rows = rows
+        if self.csv_rows is None:
+            self.display_history(rows)
+            self.window.historyHint.setText("Наведи на действие, чтобы посмотреть результат." if rows else "Пока пусто.")
+
+    def display_history(self, rows):
+        table = self.window.historyTable
+        table.setRowCount(len(rows))
+        for row, (date, product, action, details) in enumerate(rows):
             for column, text in enumerate((date, product, action)):
                 item = QTableWidgetItem(text)
                 tip = details if column == 2 and details else text
                 item.setToolTip("<qt>" + escape(tip).replace("\n", "<br>") + "</qt>")
+                if column == 2:
+                    item.setData(Qt.ItemDataRole.UserRole, details)
                 table.setItem(row, column, item)
-        self.window.historyHint.setText("Наведи на действие, чтобы посмотреть результат." if entries else "Пока пусто.")
+
+    def show_csv_history(self, rows):
+        self.csv_rows = rows
+        self.display_history(rows)
+        self.window.historyHint.setText(
+            f"История из CSV: {len(rows)} записей. Для возврата нажмите «История аккаунта»."
+        )
+
+    def restore_history(self):
+        self.csv_rows = None
+        self.display_history(self.server_rows)
+        self.window.historyHint.setText("Пока пусто." if self.token else "История появится после входа.")
+        self.refresh_history()
 
     def record(self, action, product, details):
         token = self.token
