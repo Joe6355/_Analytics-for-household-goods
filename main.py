@@ -12,7 +12,7 @@ from unicodedata import normalize
 from PyQt6 import uic
 from PyQt6.QtCore import QLineF, QPointF, QSignalBlocker, QTimer, Qt, QUrl
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
-from PyQt6.QtWidgets import QApplication, QFileDialog, QHeaderView, QInputDialog, QMainWindow, QMenu, QMessageBox, QTableWidgetItem
+from PyQt6.QtWidgets import QApplication, QFileDialog, QHeaderView, QInputDialog, QLabel, QMainWindow, QMenu, QMessageBox, QTableWidgetItem
 
 from account_client import AccountController
 from lr5_Dsv_2_personal_account import PersonalAccountCSV
@@ -175,20 +175,23 @@ class HouseholdGoodsWindow(QMainWindow):
         self.local_workspace = LocalWorkspace(Path(state_path)) if state_path is not None else None
         self.workspace_state = WorkspaceState()
         self.workspace_save_timer = None
-        load_failed = False
+        self.workspace_notice = None
+        load_warning = ""
         if self.local_workspace is not None:
             try:
                 self.workspace_state = self.local_workspace.load()
-            except (OSError, ValueError):
+            except ValueError:
                 LOGGER.exception("Не удалось восстановить локальное рабочее состояние")
-                self.local_workspace = None
-                load_failed = True
+                load_warning = "Черновик повреждён. При сохранении будет создана резервная копия."
+            except OSError:
+                LOGGER.exception("Не удалось прочитать файл рабочего состояния")
+                load_warning = "Черновик недоступен. Проверьте доступ к файлу данных."
         self.sidebarImage.setPixmap(QPixmap(str(PROJECT_DIR / "household-goods-sidebar.png")))
         self.calculateUsageButton.clicked.connect(self.check_usage)
         for field in (self.productInput, self.packageInput, self.packagePriceInput, self.measurementsInput):
             field.textChanged.connect(self.clear_usage_result)
             field.textChanged.connect(self.clear_forecast)
-        self.packageUnit.currentTextChanged.connect(self.set_usage_unit)
+        self.packageUnit.currentTextChanged.connect(self.change_usage_unit)
         self.packageUnit.currentTextChanged.connect(self.clear_forecast)
         self.set_usage_unit(self.packageUnit.currentText())
 
@@ -267,8 +270,9 @@ class HouseholdGoodsWindow(QMainWindow):
             for _, _, _, changed in self.draft_bindings():
                 changed.connect(self.schedule_workspace_save)
         self.update_page()
-        if load_failed:
-            self.statusBar().showMessage("Не удалось открыть локальные сравнения и замеры. Файл данных сохранён.", 12000)
+        if load_warning:
+            self.workspace_notice = QLabel(load_warning)
+            self.statusBar().addPermanentWidget(self.workspace_notice)
 
     @property
     def comparison(self):
@@ -348,8 +352,8 @@ class HouseholdGoodsWindow(QMainWindow):
     def draft_bindings(self):
         return (
             ("product", self.productInput.text, self.productInput.setText, self.productInput.textChanged),
-            ("package", self.packageInput.text, self.packageInput.setText, self.packageInput.textChanged),
             ("unit", self.packageUnit.currentText, self.packageUnit.setCurrentText, self.packageUnit.currentTextChanged),
+            ("package", self.packageInput.text, self.packageInput.setText, self.packageInput.textChanged),
             ("price", self.packagePriceInput.text, self.packagePriceInput.setText, self.packagePriceInput.textChanged),
             ("measurements", self.measurementsInput.toPlainText, self.measurementsInput.setPlainText, self.measurementsInput.textChanged),
             ("frequency", self.frequencyInput.value, self.frequencyInput.setValue, self.frequencyInput.valueChanged),
@@ -375,7 +379,13 @@ class HouseholdGoodsWindow(QMainWindow):
     def save_workspace(self):
         self.workspace_state.draft = {key: read() for key, read, _, _ in self.draft_bindings()}
         self.workspace_state.draft["imported_composition"] = self.imported_composition
-        self.local_workspace.save(self.workspace_state)
+        backup = self.local_workspace.save(self.workspace_state)
+        if self.workspace_notice is not None:
+            self.statusBar().removeWidget(self.workspace_notice)
+            self.workspace_notice.deleteLater()
+            self.workspace_notice = None
+        if backup:
+            self.statusBar().showMessage(f"Черновик сохранён. Резервная копия: {backup.name}", 12000)
 
     def autosave_workspace(self):
         try:
@@ -418,6 +428,14 @@ class HouseholdGoodsWindow(QMainWindow):
     def set_usage_unit(self, unit):
         self.measurementsLabel.setText(f"<b>Замеры за одно применение, {unit}</b>")
         self.clear_usage_result()
+
+    def change_usage_unit(self, unit):
+        had_measurements = bool(self.packageInput.text().strip() or self.measurementsInput.toPlainText().strip())
+        self.packageInput.clear()
+        self.measurementsInput.clear()
+        self.set_usage_unit(unit)
+        if had_measurements:
+            self.statusBar().showMessage("Введите фасовку и замеры в новой единице.", 7000)
 
     def read_usage_fields(self):
         return validate_usage(
@@ -694,8 +712,8 @@ class HouseholdGoodsWindow(QMainWindow):
             self.imported_composition = offer.composition
 
         self.productInput.setText(offer.product)
-        self.packageInput.setText(format(offer.amount, "f").replace(".", ","))
         self.packageUnit.setCurrentText(unit)
+        self.packageInput.setText(format(offer.amount, "f").replace(".", ","))
         self.packagePriceInput.setText(format(offer.price, "f").replace(".", ","))
         self.sectionList.setCurrentRow(self.sectionStack.indexOf(self.usagePage))
 

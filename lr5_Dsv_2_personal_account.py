@@ -55,7 +55,7 @@ class PersonalAccountCSV:
         # читаем csv и проверяем строки
         try:
             with open(path, "r", encoding="utf-8-sig", newline="") as file:
-                reader = csv.DictReader(file, delimiter=";")
+                reader = csv.DictReader(file, delimiter=";", strict=True)
 
                 if reader.fieldnames not in (HEADERS, EXPORT_HEADERS):
                     raise ValueError("Нужны столбцы: Дата, Товар, Действие и необязательный столбец Подробности.")

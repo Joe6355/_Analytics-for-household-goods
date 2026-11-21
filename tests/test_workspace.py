@@ -167,3 +167,49 @@ class WorkspaceTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 first.save(old)
             self.assertEqual(LocalWorkspace(path).load().draft["measurements"], "9,5")
+
+    def test_user_unit_change_discards_quantities_and_restores_new_values(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "workspace.json"
+            window = HouseholdGoodsWindow(state_path=path)
+            window.packageInput.setText("500")
+            window.measurementsInput.setPlainText("8,5\n9,5")
+            window.packageUnit.setCurrentText("г")
+            self.assertEqual(window.packageInput.text(), "")
+            self.assertEqual(window.measurementsInput.toPlainText(), "")
+            window.packageInput.setText("250")
+            window.measurementsInput.setPlainText("10")
+            window.close()
+
+            restored = HouseholdGoodsWindow(state_path=path)
+            self.addCleanup(restored.close)
+            self.assertEqual(restored.packageUnit.currentText(), "г")
+            self.assertEqual(restored.packageInput.text(), "250")
+            self.assertEqual(restored.measurementsInput.toPlainText(), "10")
+
+    def test_offer_transfers_quantity_when_unit_changes(self):
+        window = HouseholdGoodsWindow()
+        self.addCleanup(window.close)
+        window.measurementsInput.setPlainText("9")
+        product = ProductPage(Decimal(49), CARD_URL, "Губки", (Decimal(5), "шт."))
+        window.apply_loaded_product("Магазин", product)
+        window.offersTable.selectRow(0)
+        window.useOfferButton.click()
+        self.assertEqual(window.packageUnit.currentText(), "шт.")
+        self.assertEqual(window.packageInput.text(), "5")
+        self.assertEqual(window.measurementsInput.toPlainText(), "")
+
+    def test_corrupt_workspace_is_backed_up_before_saving_new_draft(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "workspace.json"
+            original = b'{"version": 1,'
+            path.write_bytes(original)
+            with patch("main.LOGGER.exception"):
+                window = HouseholdGoodsWindow(state_path=path)
+            self.assertIsNotNone(window.workspace_notice)
+            window.productInput.setText("Новый черновик")
+            window.close()
+            backups = list(path.parent.glob("workspace.backup-*.json"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(backups[0].read_bytes(), original)
+            self.assertEqual(LocalWorkspace(path).load().draft["product"], "Новый черновик")

@@ -3,6 +3,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
+from uuid import uuid4
 
 from PyQt6.QtCore import QIODevice, QLockFile, QSaveFile
 
@@ -69,7 +70,7 @@ def decode_state(data):
         if type(active) is not int or not 0 <= active < len(comparisons) or not isinstance(draft, dict):
             raise ValueError("Неверные данные рабочего состояния.")
         return WorkspaceState(comparisons, active, draft)
-    except (AttributeError, InvalidOperation, KeyError, TypeError, ValueError) as error:
+    except (AttributeError, InvalidOperation, KeyError, RecursionError, TypeError, ValueError) as error:
         raise ValueError("Не удалось прочитать сохранённые сравнения и замеры.") from error
 
 
@@ -77,6 +78,7 @@ class LocalWorkspace:
     def __init__(self, path):
         self.path = path
         self.original = None
+        self.recovery_backup = None
 
     def read(self):
         try:
@@ -86,7 +88,26 @@ class LocalWorkspace:
 
     def load(self):
         self.original = self.read()
-        return WorkspaceState() if self.original is None else decode_state(self.original)
+        self.recovery_backup = None
+        if self.original is None:
+            return WorkspaceState()
+        try:
+            return decode_state(self.original)
+        except ValueError:
+            self.recovery_backup = self.path.with_name(f"{self.path.stem}.backup-{uuid4().hex}.json")
+            raise
+
+    @staticmethod
+    def write(path, data):
+        file = QSaveFile(str(path))
+        if not file.open(QIODevice.OpenModeFlag.WriteOnly):
+            raise OSError(file.errorString())
+        if file.write(data) != len(data):
+            error = file.errorString()
+            file.cancelWriting()
+            raise OSError(error)
+        if not file.commit():
+            raise OSError(file.errorString())
 
     def save(self, state):
         data = json.dumps({"version": 1, **asdict(state)}, ensure_ascii=False, default=str, indent=2).encode("utf-8")
@@ -99,14 +120,12 @@ class LocalWorkspace:
         try:
             if self.read() != self.original:
                 raise OSError("Другое окно уже сохранило изменения.")
-            file = QSaveFile(str(self.path))
-            if not file.open(QIODevice.OpenModeFlag.WriteOnly):
-                raise OSError(file.errorString())
-            if file.write(data) != len(data):
-                file.cancelWriting()
-                raise OSError(file.errorString())
-            if not file.commit():
-                raise OSError(file.errorString())
+            if self.recovery_backup is not None:
+                self.write(self.recovery_backup, self.original)
+            self.write(self.path, data)
             self.original = data
+            backup = self.recovery_backup
+            self.recovery_backup = None
+            return backup
         finally:
             lock.unlock()

@@ -74,6 +74,18 @@ class AccountCSVTests(unittest.TestCase):
         self.assertEqual(self.window.historyTable.item(0, 1).text(), "Гель")
         self.assertIsNone(self.account.csv_rows)
 
+    def test_unclosed_quote_does_not_replace_imported_history(self):
+        self.load([["Дата", "Товар", "Действие"], ["20.11.2026", "Гель", "Расчёт"]])
+        broken = self.path / "broken.csv"
+        broken.write_text('Дата;Товар;Действие\n21.11.2026;Другой товар;"Расчёт', encoding="utf-8")
+
+        with patch("lr5_Dsv_2_personal_account.QFileDialog.getOpenFileName", return_value=(str(broken), "")), \
+                patch("lr5_Dsv_2_personal_account.QMessageBox.warning") as warning:
+            self.csv.load_button.click()
+        warning.assert_called_once()
+        self.assertEqual(self.window.historyTable.rowCount(), 1)
+        self.assertEqual(self.window.historyTable.item(0, 1).text(), "Гель")
+
     def test_session_change_clears_import(self):
         self.load([["Дата", "Товар", "Действие"], ["20.11.2026", "CSV", "Расчёт"]])
         self.account.show_session()
