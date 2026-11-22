@@ -10,7 +10,7 @@ from PyQt6.QtCore import QUrl
 from PyQt6.QtNetwork import QNetworkReply
 from PyQt6.QtWidgets import QApplication
 
-from browser_loader import same_product_address
+from browser_loader import product_redirect_message, resolve_product_address
 from main import HouseholdGoodsWindow
 from price_loader import PriceLoader
 from store_page import (
@@ -30,6 +30,18 @@ class CardParsingTests(unittest.TestCase):
         text = f"{name}\nОбъем, мл:\n500 36 ₽/100 мл\n1000 23 ₽/100 мл\n226 ₽\nС банками\n250 ₽\nВ корзину"
         page = parse_browser_product(text, "https://www.ozon.ru/product/synergetic-540246714/", f"{name} купить на OZON")
         self.assertEqual((page.price, page.package, page.price_note), (Decimal(226), (Decimal(1000), "мл"), "С банками"))
+
+    def test_ozon_reads_card_with_an_ellipsized_heading(self):
+        name = "Synergetic Биоразлагаемое средство для мытья посуды с ароматом Алоэ 500 мл"
+        shortened = "Synergetic Биоразлагаемое средство для мытья …посуды с ароматом Алоэ 500 мл"
+        address = "https://www.ozon.ru/product/synergetic-1980434164/"
+        title = f"{name} купить на OZON по низкой цене (1980434164)"
+        text = f"{shortened}\nОбъем, мл:\n51 ₽/100 мл\n252 ₽\nС банками\n280 ₽\nВ корзину"
+        page = parse_browser_product(text, address, title)
+        self.assertEqual((page.name, page.price, page.package, page.price_note),
+                         (name, Decimal(252), (Decimal(500), "мл"), "С банками"))
+        with self.assertRaises(ValueError):
+            parse_browser_product(text.replace("Алоэ 500 мл", "Мяты 500 мл"), address, title)
 
     def test_wildberries_volume_selector_does_not_replace_selected_package(self):
         heading = "Средство для мытья посуды Лимон, 900 мл"
@@ -160,10 +172,37 @@ class CardParsingTests(unittest.TestCase):
         self.assertFalse(is_store_card("https://aliexpress.ru/wholesale?SearchText=губки"))
 
     def test_browser_address_must_keep_selected_sku_and_store(self):
-        self.assertTrue(same_product_address(ALI_URL, ALI_URL + "&utm_source=test"))
-        self.assertFalse(same_product_address(ALI_URL, ALI_URL.replace("117745", "117746")))
-        self.assertFalse(same_product_address(ALI_URL, ALI_URL.replace("aliexpress.ru", "example.com")))
-        self.assertFalse(same_product_address(ALI_URL, ALI_URL.replace("https:", "http:")))
+        self.assertEqual(resolve_product_address(ALI_URL, ALI_URL + "&utm_source=test"), ALI_URL)
+        self.assertIsNone(resolve_product_address(ALI_URL, ALI_URL.replace("117745", "117746")))
+        self.assertIsNone(resolve_product_address(ALI_URL, ALI_URL.replace("aliexpress.ru", "example.com")))
+        self.assertIsNone(resolve_product_address(ALI_URL, ALI_URL.replace("https:", "http:")))
+
+    def test_yandex_preserves_automatically_selected_seller_for_refresh(self):
+        card = "https://market.yandex.ru/card/fairy/4850591942"
+        offer = card + "?do-waremd5=abc123"
+        self.assertEqual(resolve_product_address(card, offer + "&utm_source=test"), offer)
+        self.assertEqual(resolve_product_address(offer, offer), offer)
+        self.assertIsNone(resolve_product_address(offer, offer.replace("abc123", "xyz456")))
+        self.assertIsNone(resolve_product_address(card, offer.replace("4850591942", "4850591943")))
+        self.assertIsNone(resolve_product_address(card, offer + "&sku=456"))
+
+    def test_ozon_accepts_browser_added_parameter_for_the_same_article(self):
+        card = "https://www.ozon.ru/product/synergetic-1980434164/"
+        opened = card + "?sh=browser-value"
+        self.assertEqual(resolve_product_address(card, opened), card)
+        self.assertIsNone(resolve_product_address(card, opened.replace("1980434164", "2067261045")))
+        self.assertIsNone(resolve_product_address(card + "?sh=selected", opened))
+        self.assertIsNone(resolve_product_address(card, opened + "&sku=123"))
+
+    def test_redirect_reports_store_search_or_verification(self):
+        ozon = "https://www.ozon.ru/product/synergetic-2067261045/"
+        search = "https://www.ozon.ru/search/?text=synergetic&product_id=2067261045"
+        self.assertIn("перенаправил карточку в поиск", product_redirect_message(ozon, search))
+        self.assertEqual(product_redirect_message(ozon, search.replace("2067261045", "540246714")), "")
+
+        challenge = "https://aliexpress.ru//item/1005012259382305.html/_____tmd_____/punish?x5step=1"
+        self.assertIn("запросил проверку", product_redirect_message(ALI_URL, challenge))
+        self.assertEqual(product_redirect_message(ALI_URL, challenge.replace("aliexpress.ru", "example.com")), "")
 
 
 class ImportFlowTests(unittest.TestCase):

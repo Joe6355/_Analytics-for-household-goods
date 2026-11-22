@@ -420,6 +420,17 @@ def parse_price(html, content_type=""):
     return parse_product_page(html, content_type).price
 
 
+def truncated_browser_heading(name, lines):
+    matches = set()
+    for line in lines:
+        prefix, ellipsis, suffix = line.partition("…")
+        prefix, suffix = prefix.rstrip(), suffix.lstrip()
+        if (ellipsis and prefix and suffix and len(prefix) + len(suffix) < len(name)
+                and name.startswith(prefix) and name.endswith(suffix)):
+            matches.add(line)
+    return next(iter(matches)) if len(matches) == 1 else ""
+
+
 def parse_browser_product(text, address, title):
     host = store_host(address)
     if host not in SUPPORTED_STORE_HOSTS:
@@ -435,6 +446,9 @@ def parse_browser_product(text, address, title):
     if "Не удалось загрузить сайт" in lines:
         raise StorePageUnavailable("Сайт магазина показывает ошибку загрузки. Повторите добавление, когда карточка откроется в браузере.")
     heading = name
+    if host == "ozon.ru" and name not in lines:
+        # В узком блоке Ozon сокращает середину заголовка, а название вкладки остаётся полным.
+        heading = truncated_browser_heading(name, lines)
     if host == "lenta.com" and heading not in lines and "Полное название товара" in lines:
         index = lines.index("Полное название товара")
         if index + 1 < len(lines) and lines[index + 1] in lines[:index]:
