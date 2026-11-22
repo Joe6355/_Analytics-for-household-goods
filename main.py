@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import QApplication, QFileDialog, QHeaderView, QInputDialog
 from account_client import AccountController
 from lr5_Dsv_2_personal_account import PersonalAccountCSV
 from price_loader import PriceLoader
-from workspace_state import Comparison, LocalWorkspace, Offer, WorkspaceState
+from workspace_state import Comparison, LocalWorkspace, Offer, UsageSamples, WorkspaceState
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -176,6 +176,8 @@ class HouseholdGoodsWindow(QMainWindow):
         self.workspace_state = WorkspaceState()
         self.workspace_save_timer = None
         self.workspace_notice = None
+        self.usage_context: tuple[Comparison, str] | None = None
+        self.set_usage_price_note("")
         load_warning = ""
         if self.local_workspace is not None:
             try:
@@ -193,6 +195,7 @@ class HouseholdGoodsWindow(QMainWindow):
             field.textChanged.connect(self.clear_forecast)
         self.packageUnit.currentTextChanged.connect(self.change_usage_unit)
         self.packageUnit.currentTextChanged.connect(self.clear_forecast)
+        self.packagePriceInput.textChanged.connect(lambda: self.set_usage_price_note(""))
         self.set_usage_unit(self.packageUnit.currentText())
 
         self.forecastProduct.setTextFormat(Qt.TextFormat.PlainText)
@@ -324,14 +327,16 @@ class HouseholdGoodsWindow(QMainWindow):
         comparisons = self.workspace_state.comparisons
         if self.price_loading or len(comparisons) <= 1:
             return
-        if self.offers:
+        if self.offers or self.comparison.usage_samples:
             answer = QMessageBox.question(
-                self, "Удаление списка", "Удалить выбранный список вместе с его предложениями?",
+                self, "Удаление списка", "Удалить выбранный список, его предложения и сохранённые замеры?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Cancel,
             )
             if answer != QMessageBox.StandardButton.Yes:
                 return
+        if self.usage_context is not None and self.usage_context[0] is self.comparison:
+            self.usage_context = None
         del comparisons[self.workspace_state.active]
         self.workspace_state.active = min(self.workspace_state.active, len(comparisons) - 1)
         self.load_comparison_selector()
@@ -371,14 +376,55 @@ class HouseholdGoodsWindow(QMainWindow):
                 write(value)
         if saved.get("imported_composition") == self.compositionInput.toPlainText():
             self.imported_composition = self.compositionInput.toPlainText()
+        price_note = saved.get("price_note")
+        if isinstance(price_note, str):
+            self.set_usage_price_note(price_note)
+
+        comparisons = self.workspace_state.comparisons
+        unit = self.packageUnit.currentText()
+        index = saved.get("comparison")
+        if type(index) is int and 0 <= index < len(comparisons):
+            self.usage_context = (comparisons[index], unit)
+        elif "comparison" not in saved and (name := str(saved.get("product", "")).strip().casefold()):
+            # Старый черновик связываем со списком, только когда совпадение однозначно.
+            matches = [
+                comparison for comparison in comparisons
+                if comparison.unit == unit and any(offer.product.casefold() == name for offer in comparison.offers)
+            ]
+            if len(matches) == 1:
+                self.usage_context = (matches[0], unit)
+
+    def remember_usage_samples(self):
+        if self.usage_context is None:
+            return
+        comparison, unit = self.usage_context
+        comparison.usage_samples[unit] = UsageSamples(
+            self.measurementsInput.toPlainText(), self.testCountInput.value(), self.successCountInput.value(),
+        )
+
+    def set_usage_samples(self, samples):
+        self.measurementsInput.setPlainText(samples.measurements)
+        self.testCountInput.setValue(samples.tests)
+        self.successCountInput.setValue(samples.successes)
+
+    def set_usage_price_note(self, note):
+        self.usage_price_note = note
+        self.usagePriceNote.setText(f"Условие цены — {note}" if note else "")
+        self.usagePriceNote.setVisible(bool(note))
 
     def schedule_workspace_save(self):
         if self.workspace_save_timer is not None:
             self.workspace_save_timer.start()
 
     def save_workspace(self):
+        self.remember_usage_samples()
         self.workspace_state.draft = {key: read() for key, read, _, _ in self.draft_bindings()}
-        self.workspace_state.draft["imported_composition"] = self.imported_composition
+        comparison = self.usage_context[0] if self.usage_context is not None else None
+        self.workspace_state.draft.update(
+            comparison=next((i for i, item in enumerate(self.workspace_state.comparisons) if item is comparison), None),
+            imported_composition=self.imported_composition,
+            price_note=self.usage_price_note,
+        )
         backup = self.local_workspace.save(self.workspace_state)
         if self.workspace_notice is not None:
             self.statusBar().removeWidget(self.workspace_notice)
@@ -431,8 +477,13 @@ class HouseholdGoodsWindow(QMainWindow):
 
     def change_usage_unit(self, unit):
         had_measurements = bool(self.packageInput.text().strip() or self.measurementsInput.toPlainText().strip())
+        if self.usage_context is not None:
+            self.remember_usage_samples()
+            self.usage_context = None
+            self.set_usage_samples(UsageSamples())
         self.packageInput.clear()
         self.measurementsInput.clear()
+        self.set_usage_price_note("")
         self.set_usage_unit(unit)
         if had_measurements:
             self.statusBar().showMessage("Введите фасовку и замеры в новой единице.", 7000)
@@ -476,6 +527,8 @@ class HouseholdGoodsWindow(QMainWindow):
                 f"Средний расход — {self.averageUsageValue.text()}. "
                 f"Стоимость применения — {cost_text} ₽. Полных применений — {full_uses_text}."
             )
+            if self.usage_price_note:
+                details += f" Условие цены — {self.usage_price_note}."
             self.account.record("Расчёт расхода", self.productInput.text(), details)
         finally:
             self.calculateUsageButton.setEnabled(True)
@@ -528,7 +581,10 @@ class HouseholdGoodsWindow(QMainWindow):
 
         product = self.productInput.text().strip()
         package = format(amount, "f").replace(".", ",")
-        self.forecastProduct.setText(f"{product} · {package} {unit}")
+        product_summary = f"{product} · {package} {unit}"
+        if self.usage_price_note:
+            product_summary += f"\nУсловие цены — {self.usage_price_note}"
+        self.forecastProduct.setText(product_summary)
         self.forecastHint.hide()
         self.durationValue.show()
         self.forecastDurationCaption.show()
@@ -537,6 +593,8 @@ class HouseholdGoodsWindow(QMainWindow):
         self.set_forecast_rows(rows)
         self.show_remaining_graph(Fraction(amount), average, full_uses, annual_uses, unit)
         details = f"Упаковки хватит на {days_text} дн. Затраты — {monthly_row[2]} ₽ в месяц и {yearly_row[2]} ₽ в год."
+        if self.usage_price_note:
+            details += f" Условие цены — {self.usage_price_note}."
         self.account.record("Прогноз", product, details)
 
     def show_remaining_graph(self, amount, average, full_uses, annual_uses, unit):
@@ -698,26 +756,40 @@ class HouseholdGoodsWindow(QMainWindow):
 
         offer = self.offers[row]
         unit = self.offerUnit.currentText()
-        same_product = offer.product.casefold() == self.productInput.text().strip().casefold()
-        if not same_product or unit != self.packageUnit.currentText():
-            self.measurementsInput.clear()
-        if not same_product:
-            self.successCountInput.setValue(0)
-            self.testCountInput.setValue(0)
+        comparison = self.comparison
+        same_list = self.usage_context is not None and self.usage_context[0] is comparison
+        current_product = self.productInput.text().strip()
+        product = offer.product or (current_product if same_list else "")
+        same_title = product.casefold() == current_product.casefold()
+        self.remember_usage_samples()
+        samples = comparison.usage_samples.get(unit)
+        same_context = same_list and self.usage_context[1] == unit
+        keep_manual_samples = (
+            self.usage_context is None and bool(product) and same_title
+            and unit == self.packageUnit.currentText() and samples is None
+        )
+        if not (same_context or keep_manual_samples):
+            self.set_usage_samples(samples or UsageSamples())
 
         current_composition = self.compositionInput.toPlainText()
         can_replace_composition = not current_composition.strip() or current_composition == self.imported_composition
-        if not same_product or (offer.composition and can_replace_composition):
+        if not same_title or (offer.composition and can_replace_composition):
             self.compositionInput.setPlainText(offer.composition)
             self.imported_composition = offer.composition
 
-        self.productInput.setText(offer.product)
-        self.packageUnit.setCurrentText(unit)
+        self.productInput.setText(product)
+        with QSignalBlocker(self.packageUnit):
+            self.packageUnit.setCurrentText(unit)
         self.packageInput.setText(format(offer.amount, "f").replace(".", ","))
         self.packagePriceInput.setText(format(offer.price, "f").replace(".", ","))
+        self.set_usage_price_note(offer.price_note)
+        self.set_usage_unit(unit)
+        self.clear_forecast()
+        self.usage_context = (comparison, unit)
+        self.schedule_workspace_save()
         self.sectionList.setCurrentRow(self.sectionStack.indexOf(self.usagePage))
 
-        if not offer.product:
+        if not product:
             self.productInput.setFocus()
             message = "Укажите название товара, чтобы рассчитать расход."
         elif not self.measurementsInput.toPlainText().strip():
@@ -798,9 +870,12 @@ class HouseholdGoodsWindow(QMainWindow):
             return
 
         best_price = self.offers[0].price_per_unit
-        stores = dict.fromkeys(offer.store for offer in self.offers if offer.price_per_unit == best_price)
+        best_offers = dict.fromkeys(
+            " · ".join(filter(None, (offer.store, offer.price_note)))
+            for offer in self.offers if offer.price_per_unit == best_price
+        )
         best_amount = format_number(best_price * scale, 2)
-        self.bestPriceLabel.setText(f"Лучшая цена — {best_amount} ₽ за {quantity} ({', '.join(stores)}).")
+        self.bestPriceLabel.setText(f"Лучшая из указанных цен — {best_amount} ₽ за {quantity} ({', '.join(best_offers)}).")
 
     def update_characteristics_package(self):
         self.characteristicsProduct.setText(self.productInput.text().strip())

@@ -535,6 +535,22 @@ QHeaderView::section {
                   </layout>
                  </item>
                  <item>
+                  <widget class="QLabel" name="usagePriceNote">
+                   <property name="text">
+                    <string/>
+                   </property>
+                   <property name="textFormat">
+                    <enum>Qt::PlainText</enum>
+                   </property>
+                   <property name="wordWrap">
+                    <bool>true</bool>
+                   </property>
+                   <property name="role" stdset="0">
+                    <string>muted</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
                   <widget class="QLabel" name="measurementsLabel">
                    <property name="text">
                     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Замеры за одно применение, мл&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -1282,6 +1298,9 @@ QHeaderView::section {
                 <widget class="QLabel" name="forecastProduct">
                  <property name="text">
                   <string>Гель для посуды · 500 мл</string>
+                 </property>
+                 <property name="wordWrap">
+                  <bool>true</bool>
                  </property>
                  <property name="role" stdset="0">
                   <string>muted</string>

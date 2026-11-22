@@ -27,18 +27,26 @@ class Offer:
         return Fraction(self.price) / Fraction(self.amount)
 
 
+@dataclass(frozen=True)
+class UsageSamples:
+    measurements: str = ""
+    tests: int = 0
+    successes: int = 0
+
+
 @dataclass
 class Comparison:
     name: str
     unit: str = "мл"
     offers: list[Offer] = field(default_factory=list)
+    usage_samples: dict[str, UsageSamples] = field(default_factory=dict)
 
 
 @dataclass
 class WorkspaceState:
     comparisons: list[Comparison] = field(default_factory=lambda: [Comparison("Основное сравнение")])
     active: int = 0
-    draft: dict[str, str | int] = field(default_factory=dict)
+    draft: dict[str, str | int | None] = field(default_factory=dict)
 
 
 def decode_state(data):
@@ -63,6 +71,13 @@ def decode_state(data):
                     datetime.fromisoformat(offer.loaded_at)
                 comparison.offers.append(offer)
             comparison.offers.sort(key=lambda offer: offer.price_per_unit)
+            for unit, fields in value.get("usage_samples", {}).items():
+                samples = UsageSamples(**fields)
+                if (unit not in UNITS or not isinstance(samples.measurements, str)
+                        or type(samples.tests) is not int or type(samples.successes) is not int
+                        or samples.tests < 0 or samples.successes < 0):
+                    raise ValueError("Неверные замеры или данные испытаний в списке сравнения.")
+                comparison.usage_samples[unit] = samples
             comparisons.append(comparison)
 
         active = payload["active"]

@@ -1,5 +1,6 @@
 import os
 import unittest
+from contextlib import contextmanager
 from decimal import Decimal
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -12,10 +13,19 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from main import HouseholdGoodsWindow
 from store_page import ProductPage
-from workspace_state import LocalWorkspace
+from workspace_state import LocalWorkspace, Offer
 
 
 CARD_URL = "https://market.yandex.ru/card/gel/123456?do-waremd5=abc123"
+
+
+@contextmanager
+def open_window(path):
+    window = HouseholdGoodsWindow(state_path=path)
+    try:
+        yield window
+    finally:
+        window.close()
 
 
 class WorkspaceTests(unittest.TestCase):
@@ -198,6 +208,79 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(window.packageUnit.currentText(), "шт.")
         self.assertEqual(window.packageInput.text(), "5")
         self.assertEqual(window.measurementsInput.toPlainText(), "")
+
+    def test_switching_stores_retains_samples_and_price_condition_after_restart(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "workspace.json"
+            with open_window(path) as window:
+                self.new_comparison(window, "Fairy Лимон")
+                window.apply_loaded_product(
+                    "Магнит", ProductPage(Decimal(279), "", "Fairy Лимон 900 мл", (Decimal(900), "мл")),
+                )
+                window.apply_loaded_product(
+                    "Маркет", ProductPage(Decimal(219), CARD_URL, "Fairy / Средство Лимон, 900 мл",
+                                          (Decimal(900), "мл"), "Цена с Яндекс Пэй"),
+                )
+                self.assertIn("Цена с Яндекс Пэй", window.bestPriceLabel.text())
+                window.offersTable.selectRow(1)
+                window.useOfferButton.click()
+                window.measurementsInput.setPlainText("8\n10")
+                window.testCountInput.setValue(10)
+                window.successCountInput.setValue(8)
+                window.offersTable.selectRow(0)
+                window.useOfferButton.click()
+                self.assertEqual(window.packagePriceInput.text(), "219")
+                self.assertEqual(window.measurementsInput.toPlainText(), "8\n10")
+                self.assertEqual((window.testCountInput.value(), window.successCountInput.value()), (10, 8))
+                self.assertIn("Цена с Яндекс Пэй", window.usagePriceNote.text())
+                window.frequencyPeriod.setCurrentText("в месяц")
+                window.frequencyInput.setValue(20)
+                window.calculateForecastButton.click()
+                self.assertIn("Цена с Яндекс Пэй", window.forecastProduct.text())
+                self.assertEqual(window.forecastTable.item(0, 3).text(), "43,80")
+
+            with open_window(path) as window:
+                self.assertIn("Цена с Яндекс Пэй", window.usagePriceNote.text())
+                self.assertEqual(window.measurementsInput.toPlainText(), "8\n10")
+                window.packagePriceInput.setText("225")
+                self.assertEqual(window.usagePriceNote.text(), "")
+
+                self.new_comparison(window, "Другой товар")
+                window.apply_loaded_product(
+                    "Магазин", ProductPage(Decimal(230), "", "Гель", (Decimal(700), "мл")),
+                )
+                window.offersTable.selectRow(0)
+                window.useOfferButton.click()
+                self.assertEqual(window.measurementsInput.toPlainText(), "")
+                self.assertEqual(window.testCountInput.value(), 0)
+                window.measurementsInput.setPlainText("15")
+
+            with open_window(path) as window:
+                self.assertEqual(window.measurementsInput.toPlainText(), "15")
+                window.comparisonSelector.setCurrentIndex(1)
+                window.offersTable.selectRow(1)
+                window.useOfferButton.click()
+                self.assertEqual(window.measurementsInput.toPlainText(), "8\n10")
+                self.assertEqual((window.testCountInput.value(), window.successCountInput.value()), (10, 8))
+                self.assertEqual(window.usagePriceNote.text(), "")
+
+    def test_legacy_draft_keeps_samples_when_selecting_another_store(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "workspace.json"
+            workspace = LocalWorkspace(path)
+            state = workspace.load()
+            state.comparisons[0].offers = [
+                Offer("Первый магазин", Decimal(900), Decimal(279), "Fairy Лимон"),
+                Offer("Второй магазин", Decimal(900), Decimal(219), "Fairy / Лимон"),
+            ]
+            state.draft = {"product": "Fairy Лимон", "unit": "мл", "measurements": "8\n10"}
+            workspace.save(state)
+
+            with open_window(path) as window:
+                window.offersTable.selectRow(0)
+                window.useOfferButton.click()
+                self.assertEqual(window.productInput.text(), "Fairy / Лимон")
+                self.assertEqual(window.measurementsInput.toPlainText(), "8\n10")
 
     def test_corrupt_workspace_is_backed_up_before_saving_new_draft(self):
         with TemporaryDirectory() as directory:
