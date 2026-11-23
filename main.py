@@ -823,20 +823,30 @@ class HouseholdGoodsWindow(QMainWindow):
             self.show_price_error("Предложение для обновления отсутствует.")
             return
 
-        updated = replace(offer, price=product.price, price_note=product.price_note, loaded_at=current_price_time())
+        updated = replace(
+            offer, price=product.price, price_note=product.price_note, loaded_at=current_price_time(),
+            composition=product.composition or offer.composition,
+        )
         self.offers[index] = updated
         self.offers.sort(key=lambda item: item.price_per_unit)
         self.refreshing_offer = None
         self.set_price_loading(False)
         self.update_offers_table()
-        if self.selected_offer_id == offer.offer_id and self.usage_price_note == offer.price_note:
-            try:
-                current_price = read_number(self.packagePriceInput.text(), "")
-            except (ValueError, InvalidOperation):
-                current_price = None
-            if current_price == offer.price:
-                self.packagePriceInput.setText(format(updated.price, "f").replace(".", ","))
-                self.set_usage_price_note(updated.price_note)
+        composition_changed = updated.composition != offer.composition
+        if self.selected_offer_id == offer.offer_id:
+            if self.usage_price_note == offer.price_note:
+                try:
+                    current_price = read_number(self.packagePriceInput.text(), "")
+                except (ValueError, InvalidOperation):
+                    current_price = None
+                if current_price == offer.price:
+                    self.packagePriceInput.setText(format(updated.price, "f").replace(".", ","))
+                    self.set_usage_price_note(updated.price_note)
+            current_composition = self.compositionInput.toPlainText()
+            if composition_changed and (not current_composition.strip() or current_composition == self.imported_composition):
+                self.compositionInput.setPlainText(updated.composition)
+                self.imported_composition = updated.composition
+                self.analyze_composition(record=False)
         self.offersTable.selectRow(next(row for row, item in enumerate(self.offers) if item is updated))
         old_price = format_number(Fraction(offer.price), 2)
         new_price = format_number(Fraction(updated.price), 2)
@@ -844,7 +854,8 @@ class HouseholdGoodsWindow(QMainWindow):
         if updated.price_note:
             details += f"\nУсловие цены — {updated.price_note}"
         self.account.record("Обновление цены", updated.product, details)
-        self.statusBar().showMessage("Цена обновлена.", 6000)
+        message = "Цена и состав обновлены." if composition_changed else "Цена обновлена."
+        self.statusBar().showMessage(message, 6000)
 
     def add_offer(self):
         store = self.storeInput.text().strip()

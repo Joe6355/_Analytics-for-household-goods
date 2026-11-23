@@ -124,6 +124,30 @@ class WorkspaceTests(unittest.TestCase):
             finally:
                 window.close()
 
+    def test_refresh_fills_in_the_composition_without_replacing_manual_text(self):
+        window = HouseholdGoodsWindow()
+        self.addCleanup(window.close)
+        package = (Decimal(1000), "мл")
+        window.apply_loaded_product("Ozon", ProductPage(Decimal(238), CARD_URL, "Гель", package))
+        window.offersTable.selectRow(0)
+        window.useOfferButton.click()
+
+        with patch.object(window.price_loader, "load"):
+            window.refreshOfferButton.click()
+            window.price_loader.loaded.emit(
+                "Ozon", ProductPage(Decimal(240), CARD_URL, "Гель", package, composition="Вода; экстракт алоэ"),
+            )
+            self.assertEqual(window.offers[0].composition, "Вода; экстракт алоэ")
+            self.assertEqual(window.compositionTable.rowCount(), 2)
+
+            window.compositionInput.setPlainText("Состав с этикетки")
+            window.refreshOfferButton.click()
+            window.price_loader.loaded.emit(
+                "Ozon", ProductPage(Decimal(241), CARD_URL, "Гель", package, composition="Вода; отдушка"),
+            )
+            self.assertEqual(window.offers[0].composition, "Вода; отдушка")
+            self.assertEqual(window.compositionInput.toPlainText(), "Состав с этикетки")
+
     def test_list_actions_keep_other_lists_and_respect_cancel(self):
         window = HouseholdGoodsWindow()
         self.addCleanup(window.close)

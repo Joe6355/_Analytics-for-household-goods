@@ -106,6 +106,20 @@ class CardParsingTests(unittest.TestCase):
         page = parse_browser_product(details, "https://5ka.ru/product/gel--123/", f"{name}: купить с доставкой")
         self.assertEqual(page.composition, ingredients)
 
+    def test_ozon_reads_the_description_after_other_offers(self):
+        name = "Средство для мытья посуды SYNERGETIC Алоэ вера 1 л"
+        address = "https://www.ozon.ru/product/synergetic-540246714/"
+        ingredients = "Подготовленная вода ˃ 30%; комплекс А-тензидов 5-15%; экстракт алоэ ˂ 5%."
+        text = (
+            f"{name}\n238 ₽\nС банками\nВ корзину\nПокупают вместе\n199 ₽\n"
+            f"Состав: Чужой товар\nОписание\nГель для мытья посуды\nСостав\n{ingredients}\nХарактеристики\n"
+            "С этим товаром покупают\nСостав: Другой товар"
+        )
+        page = parse_browser_product(text, address, f"{name} купить на OZON")
+        self.assertEqual((page.price, page.composition), (Decimal(238), ingredients))
+        page = parse_browser_product(text.replace(f"Состав\n{ingredients}\n", ""), address, f"{name} купить на OZON")
+        self.assertEqual(page.composition, "")
+
     def test_html_reads_magnit_composition_block_and_ignores_description(self):
         schema = {
             "@type": "Product", "name": "Гель 900 мл", "description": "Гель для мытья посуды",

@@ -25,6 +25,7 @@ RECOMMENDATIONS = re.compile(
     r"^(?:Рекомендуем также|Покупают вместе|Подобрали для вас|Похожие товары|С этим товаром покупают|Берут вместе)$",
     re.MULTILINE | re.IGNORECASE,
 )
+OZON_DESCRIPTION = re.compile(r"^Описание\n(.*?)^Характеристики$", re.MULTILINE | re.DOTALL | re.IGNORECASE)
 CHARSET = re.compile(r"charset\s*=\s*['\"]?([a-zA-Z0-9_-]+)", re.IGNORECASE)
 CAPTCHA_FORM = re.compile(r"(?:^|/)(?:checkcaptcha|showcaptcha)(?:[/?#]|$)", re.IGNORECASE)
 SAVED_FROM = re.compile(r"saved from url=\([0-9]+\)(https?://\S+)", re.IGNORECASE)
@@ -472,6 +473,13 @@ def parse_browser_product(text, address, title):
     details = "\n".join(lines[lines.index(anchor) + 1:])
     card = RECOMMENDATIONS.split(details, maxsplit=1)[0]
     composition = browser_composition(card)
+    if not composition and host == "ozon.ru":
+        # Ozon может разместить описание выбранного товара после блока «Покупают вместе».
+        composition = single_composition(
+            browser_composition(section[1])
+            for section in OZON_DESCRIPTION.finditer(details)
+            if not RECOMMENDATIONS.search(section[1])
+        )
     if re.search(r"^(?:Нет в наличии|Товар закончился|Товар недоступен|Товар распродан)\b", card, re.MULTILINE | re.IGNORECASE):
         raise ProductUnavailable("Товар недоступен. Проверьте наличие на сайте магазина.")
     if host == "lenta.com":
