@@ -1119,6 +1119,28 @@ QHeaderView::section {
               </widget>
              </item>
              <item>
+              <layout class="QHBoxLayout" name="csvActions">
+               <item>
+                <widget class="QPushButton" name="loadCsvButton">
+                 <property name="text"><string>Загрузить CSV</string></property>
+                 <property name="toolTip"><string>Заменить предложения данными из CSV-файла</string></property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="saveCsvButton">
+                 <property name="text"><string>Сохранить CSV</string></property>
+                </widget>
+               </item>
+               <item>
+                <spacer name="csvActionsSpacer">
+                 <property name="orientation"><enum>Qt::Horizontal</enum></property>
+                 <property name="sizeType"><enum>QSizePolicy::Expanding</enum></property>
+                 <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
+                </spacer>
+               </item>
+              </layout>
+             </item>
+             <item>
               <layout class="QHBoxLayout" name="offerActions" stretch="1,0">
                <item>
                 <widget class="QLabel" name="bestPriceLabel">

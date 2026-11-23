@@ -1,6 +1,8 @@
+import csv
 import logging
 import re
 import sys
+import tempfile
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
@@ -169,6 +171,8 @@ class HouseholdGoodsWindow(QMainWindow):
         self.loadPriceFileButton.clicked.connect(self.load_price_file)
         self.bestPriceLabel.setTextFormat(Qt.TextFormat.PlainText)
         self.addOfferButton.clicked.connect(self.add_offer)
+        self.loadCsvButton.clicked.connect(self.load_offers_csv)
+        self.saveCsvButton.clicked.connect(self.save_offers_csv)
         self.removeOfferButton.clicked.connect(self.remove_offer)
         self.offersTable.itemSelectionChanged.connect(self.update_remove_button)
         self.offerUnit.currentTextChanged.connect(self.update_offers_table)
@@ -322,7 +326,7 @@ class HouseholdGoodsWindow(QMainWindow):
             self.price_loader.load_file(path)
 
     def set_price_loading(self, loading):
-        for field in (self.productLinkInput, self.loadPriceButton, self.loadPriceFileButton, self.addOfferButton,
+        for field in (self.productLinkInput, self.loadPriceButton, self.loadPriceFileButton, self.addOfferButton, self.loadCsvButton,
                       self.storeInput, self.offerPackageInput, self.offerPriceInput):
             field.setEnabled(not loading)
         if loading:
@@ -394,6 +398,91 @@ class HouseholdGoodsWindow(QMainWindow):
         self.offerPriceInput.clear()
         self.storeInput.setFocus()
         self.statusBar().clearMessage()
+
+    def load_offers_csv(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Загрузить предложения", "", "CSV (*.csv)")
+        if not path:
+            return
+        try:
+            offers = []
+            unit = self.offerUnit.currentText()
+            units = {self.offerUnit.itemText(i) for i in range(self.offerUnit.count())}
+            with open(path, encoding="utf-8-sig", newline="") as stream:
+                reader = csv.reader(stream, delimiter=";", strict=True)
+                headers = next(reader, [])
+                if (len(headers) not in (5, 6)
+                        or headers[:4] != ["Товар", "Магазин", "Упаковка", "Цена, ₽"]
+                        or headers[4] not in {f"За {1 if u == 'шт.' else 100} {u}, ₽" for u in units}
+                        or (len(headers) == 6 and headers[5] != "Примечание к цене")):
+                    raise ValueError("Неверные заголовки CSV. Используйте файл, сохранённый приложением.")
+                for row in reader:
+                    if not row or all(not cell.strip() for cell in row):
+                        continue
+                    try:
+                        if len(row) != len(headers):
+                            raise ValueError("Количество столбцов не совпадает с заголовком.")
+                        amount_text, row_unit = row[2].rsplit(maxsplit=1)
+                        if row_unit not in units:
+                            raise ValueError("Неизвестная единица измерения.")
+                        if offers and row_unit != unit:
+                            raise ValueError("Все предложения должны иметь одинаковую единицу измерения.")
+                        if not row[1].strip():
+                            raise ValueError("Не указан магазин.")
+                        amount, price = read_package(amount_text, row[3])
+                        offers.append(Offer(
+                            row[1].strip(), amount, price,
+                            "" if row[0] == "—" else row[0],
+                            row[5] if len(row) == 6 else "",
+                        ))
+                        unit = row_unit
+                    except (ValueError, InvalidOperation) as error:
+                        raise ValueError(f"Строка {reader.line_num}: {error}") from error
+            offers.sort(key=lambda offer: offer.price_per_unit)
+        except (OSError, UnicodeError, ValueError, csv.Error) as error:
+            QMessageBox.warning(self, "Ошибка загрузки CSV", str(error))
+            return
+
+        self.offers = offers
+        self.offerUnit.setCurrentText(unit)
+        self.update_offers_table()
+        self.statusBar().showMessage(f"Загружено предложений: {len(offers)}", 5000)
+
+    def save_offers_csv(self):
+        path, _ = QFileDialog.getSaveFileName(self, "Сохранить предложения", "offers.csv", "CSV (*.csv)")
+        if not path:
+            return
+        if not path.lower().endswith(".csv"):
+            path += ".csv"
+        unit = self.offerUnit.currentText()
+        scale = 1 if unit == "шт." else 100
+        temporary_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8-sig", newline="", delete=False,
+                dir=Path(path).parent, suffix=".tmp",
+            ) as stream:
+                temporary_path = Path(stream.name)
+                writer = csv.writer(stream, delimiter=";")
+                writer.writerow([
+                    "Товар", "Магазин", "Упаковка", "Цена, ₽",
+                    f"За {scale} {unit}, ₽", "Примечание к цене",
+                ])
+                for offer in self.offers:
+                    writer.writerow([
+                        offer.product, offer.store,
+                        f"{format(offer.amount, 'f').replace('.', ',')} {unit}",
+                        format(offer.price, "f").replace(".", ","),
+                        format_number(offer.price_per_unit * scale, 2),
+                        offer.price_note,
+                    ])
+            temporary_path.replace(path)
+        except (OSError, UnicodeError, csv.Error) as error:
+            QMessageBox.warning(self, "Ошибка сохранения CSV", str(error))
+            return
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
+        self.statusBar().showMessage("Предложения сохранены в CSV.", 5000)
 
     def remove_offer(self):
         selected = self.offersTable.selectionModel().selectedRows()
