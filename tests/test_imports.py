@@ -30,6 +30,20 @@ ALI_NAME = "Набор губок-щеток для мытья посуды 6 ш
 
 
 class CardParsingTests(unittest.TestCase):
+    def test_fix_price_reads_structured_composition(self):
+        html = (
+            '<link rel="canonical" href="https://fix-price.com/catalog/home/p-3005207-gel">'
+            '<meta property="og:title" content="Гель 500 мл">'
+            '<meta property="product:price:amount" content="116.00">'
+            '<meta property="product:price:currency" content="RUB">'
+            '<script>window.__NUXT__={properties:[{alias:"composition",'
+            'value:"15-30%: АПАВ; менее 5%: НПАВ, консервант",title:"Состав"}]};</script>'
+        )
+        page = parse_product_page(html.encode())
+        self.assertEqual(page.composition, "15-30%: АПАВ; менее 5%: НПАВ, консервант")
+        components, _ = analyze_components(page.composition)
+        self.assertEqual([component.category for component in components], ["attention", "attention", "functional"])
+
     def test_market_saved_page_reads_composition_from_product_specs(self):
         address = "https://market.yandex.ru/card/gel/4850591942"
         schema = {
@@ -253,6 +267,9 @@ class CardParsingTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertEqual(find_package(name, []), (total, unit))
 
+    def test_product_dimensions_do_not_hide_pack_count(self):
+        self.assertEqual(find_package("Губка 9х6,3х2,5см, 5шт", ()), (Decimal(5), "шт."))
+
     def test_ambiguous_pack_size_is_left_unset(self):
         cases = ("Гель 450–900 мл", "Гель 500+250 мл", "Гель 2 × 3 × 900 мл", "Гель 2 × 900 мл (1,5 л)",
                  "Гель 900 мл × 2 кг", "Гель от 2 × 900 мл", "Гель 2 × 900 мл + губка")
@@ -295,6 +312,17 @@ class CardParsingTests(unittest.TestCase):
         self.assertIsNone(resolve_product_address(card, opened.replace("1980434164", "2067261045")))
         self.assertIsNone(resolve_product_address(card + "?sh=selected", opened))
         self.assertIsNone(resolve_product_address(card, opened + "&sku=123"))
+
+    def test_ozon_redirect_marker_keeps_the_same_card(self):
+        card = "https://www.ozon.ru/product/synergetic-540246714/?at=example"
+        self.assertEqual(resolve_product_address(card, f"{card}&__rr=1"), card)
+        other = card.replace("540246714", "540246715")
+        self.assertIsNone(resolve_product_address(card, f"{other}&__rr=1"))
+
+    def test_ozon_challenge_is_reported_as_a_browser_check(self):
+        card = "https://www.ozon.ru/product/synergetic-540246714/"
+        with self.assertRaisesRegex(ValueError, "Ozon открыл страницу проверки"):
+            parse_browser_product("", card, "Antibot Challenge Page")
 
     def test_redirect_reports_store_search_or_verification(self):
         ozon = "https://www.ozon.ru/product/synergetic-2067261045/"

@@ -29,6 +29,9 @@ RECOMMENDATIONS = re.compile(
 )
 OZON_DESCRIPTION = re.compile(r"^Описание\n(.*?)^Характеристики$", re.MULTILINE | re.DOTALL | re.IGNORECASE)
 MARKET_SPEC_LIST = re.compile(r'"specs"\s*:\s*(?=\[)')
+FIX_PRICE_COMPOSITION = re.compile(
+    r'\balias\s*:\s*"composition"\s*,\s*value\s*:\s*("(?:[^"\\]|\\.)*")\s*,\s*title\s*:\s*"Состав"'
+)
 CHARSET = re.compile(r"charset\s*=\s*['\"]?([a-zA-Z0-9_-]+)", re.IGNORECASE)
 CAPTCHA_FORM = re.compile(r"(?:^|/)(?:checkcaptcha|showcaptcha)(?:[/?#]|$)", re.IGNORECASE)
 SAVED_FROM = re.compile(r"saved from url=\([0-9]+\)(https?://\S+)", re.IGNORECASE)
@@ -48,6 +51,10 @@ PACKAGE_AMOUNT = re.compile(
     re.IGNORECASE,
 )
 PACKAGE_LABEL = re.compile(rf"(?P<label>{'|'.join(PACKAGE_LABELS)})[\s:]+(?P<value>[0-9].*)")
+PRODUCT_DIMENSIONS = re.compile(
+    r"(?<![\w.,])\d+(?:[.,]\d+)?(?:\s*[xх×]\s*\d+(?:[.,]\d+)?){1,2}\s*(?:мм|см|mm|cm)(?!\w)",
+    re.IGNORECASE,
+)
 PACKAGE_RANGE_OR_SET = re.compile(
     r"\d\s*[-–—/+]\s*\d|(?:[×*]|(?<![а-яёa-z])[xх])\s*\d|\d\s*(?:шт\.?\s*)?по\s+\d",
     re.IGNORECASE,
@@ -380,6 +387,16 @@ def market_composition(html):
     return single_composition(values)
 
 
+def fix_price_composition(html):
+    values = []
+    for match in FIX_PRICE_COMPOSITION.finditer(html):
+        try:
+            values.append(clean_composition(json.loads(match[1])))
+        except ValueError:
+            continue
+    return single_composition(values)
+
+
 def find_multipack(name):
     matches = [match for pattern in MULTIPACK_PATTERNS for match in pattern.finditer(name)]
     if len(matches) != 1:
@@ -408,6 +425,7 @@ def find_multipack(name):
 
 
 def find_package(name, labels):
+    name = PRODUCT_DIMENSIONS.sub(" ", name)
     if PACKAGE_RANGE_OR_SET.search(name):
         return find_multipack(name)
     packages = {amount for match in PACKAGE_AMOUNT.finditer(name) if (amount := package_amount(match)) is not None}
@@ -455,6 +473,8 @@ def parse_browser_product(text, address, title):
         raise ValueError("Для этого магазина пока доступен разбор HTML карточки.")
     if not is_store_card(address):
         raise ValueError("Укажите прямую ссылку на карточку товара.")
+    if host == "ozon.ru" and title.strip().casefold() == "antibot challenge page":
+        raise ValueError("Ozon открыл страницу проверки. Повторите добавление после загрузки карточки в браузере.")
     name = re.split(r"(?:\s*[—–:-]\s*|\s+)купить\b", title, maxsplit=1, flags=re.IGNORECASE)[0].strip()
     if host in ALIEXPRESS_HOSTS:
         name = re.sub(r"\s*\|\s*AliExpress\s*$", "", name, flags=re.IGNORECASE)
@@ -605,7 +625,11 @@ def parse_product_page(html, content_type="", *, page_address=""):
     structured_comp = (clean_composition(prop.get("value")) for prop in product_properties(product)
                        if is_composition_label(prop["name"]))
     composition = single_composition([*markup.compositions, *structured_comp])
-    if not composition and page_url and store_host(page_url) == "market.yandex.ru" and is_store_card(page_url):
-        composition = market_composition(text)
+    if not composition and page_url and is_store_card(page_url):
+        host = store_host(page_url)
+        if host == "market.yandex.ru":
+            composition = market_composition(text)
+        elif host == "fix-price.com":
+            composition = fix_price_composition(text)
     return ProductPage(prices.pop(), page_url, name, find_package(name, package_labels(product, markup.labels)),
                        composition=composition, rating=aggregate_rating(product.get("aggregateRating")))

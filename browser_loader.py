@@ -17,12 +17,15 @@ def resolve_product_address(expected, actual):
         secure_redirect = first.scheme == "http" and second.scheme == "https"
         first_port = first.port or (443 if first.scheme == "https" else 80)
         second_port = second.port or (443 if second.scheme == "https" else 80)
+        first_host, second_host = store_host(expected), store_host(actual)
+        tracking = {"cpc", "sponsored"}
+        if first_host == second_host == "ozon.ru":
+            tracking.add("__rr")
         first_query, second_query = [], []
         for parts, query in ((first, first_query), (second, second_query)):
             for key, value in parse_qsl(parts.query, keep_blank_values=True):
-                if key.lower() not in ("cpc", "sponsored") and not key.lower().startswith("utm_"):
+                if key.lower() not in tracking and not key.lower().startswith("utm_"):
                     query.append((key, value))
-        first_host, second_host = store_host(expected), store_host(actual)
         same_host = first_host == second_host or {first_host, second_host} <= ALIEXPRESS_HOSTS
         same_card = (
             first.scheme in ("http", "https")
