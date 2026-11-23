@@ -535,6 +535,22 @@ QHeaderView::section {
                   </layout>
                  </item>
                  <item>
+                  <widget class="QLabel" name="usagePriceNote">
+                   <property name="text">
+                    <string/>
+                   </property>
+                   <property name="textFormat">
+                    <enum>Qt::PlainText</enum>
+                   </property>
+                   <property name="wordWrap">
+                    <bool>true</bool>
+                   </property>
+                   <property name="role" stdset="0">
+                    <string>muted</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
                   <widget class="QLabel" name="measurementsLabel">
                    <property name="text">
                     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Замеры за одно применение, мл&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -834,6 +850,52 @@ QHeaderView::section {
               </widget>
              </item>
              <item>
+              <layout class="QHBoxLayout" name="comparisonControls" stretch="0,1,0,0">
+               <item>
+                <widget class="QLabel" name="comparisonLabel">
+                 <property name="text">
+                  <string>Список сравнения</string>
+                 </property>
+                 <property name="buddy">
+                  <cstring>comparisonSelector</cstring>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QComboBox" name="comparisonSelector">
+                 <property name="sizeAdjustPolicy">
+                  <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
+                 </property>
+                 <property name="minimumContentsLength">
+                  <number>15</number>
+                 </property>
+                 <item>
+                  <property name="text">
+                   <string>Основное сравнение</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="newComparisonButton">
+                 <property name="text">
+                  <string>Новый список</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="manageComparisonButton">
+                 <property name="text">
+                  <string>Действия</string>
+                 </property>
+                 <property name="accessibleName">
+                  <string>Действия со списком сравнения</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item>
               <layout class="QHBoxLayout" name="productLinkFields" stretch="1,0,0">
                <item>
                 <widget class="QLineEdit" name="productLinkInput">
@@ -1014,6 +1076,11 @@ QHeaderView::section {
                  <set>AlignTrailing|AlignVCenter</set>
                 </property>
                </column>
+               <column>
+                <property name="text">
+                 <string>Дата и условия</string>
+                </property>
+               </column>
                <item row="0" column="0">
                 <property name="text">
                  <string>Гель для посуды</string>
@@ -1141,7 +1208,7 @@ QHeaderView::section {
               </layout>
              </item>
              <item>
-              <layout class="QHBoxLayout" name="offerActions" stretch="1,0">
+              <layout class="QHBoxLayout" name="offerActions" stretch="1,0,0,0">
                <item>
                 <widget class="QLabel" name="bestPriceLabel">
                  <property name="styleSheet">
@@ -1162,6 +1229,35 @@ QHeaderView::section {
                 </widget>
                </item>
                <item>
+                <widget class="QPushButton" name="useOfferButton">
+                 <property name="enabled">
+                  <bool>false</bool>
+                 </property>
+                 <property name="text">
+                  <string>Взять в расчёт</string>
+                 </property>
+                 <property name="toolTip">
+                  <string>Перенести выбранное предложение в «Расход». Если меняется товар или единица измерения, замеры нужно ввести заново.</string>
+                 </property>
+                 <property name="role" stdset="0">
+                  <string>primary</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="refreshOfferButton">
+                 <property name="enabled">
+                  <bool>false</bool>
+                 </property>
+                 <property name="text">
+                  <string>Обновить цену</string>
+                 </property>
+                 <property name="toolTip">
+                  <string>Загрузить новую цену по ссылке выбранной карточки</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
                 <widget class="QPushButton" name="removeOfferButton">
                  <property name="enabled">
                   <bool>false</bool>
@@ -1172,6 +1268,22 @@ QHeaderView::section {
                 </widget>
                </item>
               </layout>
+             </item>
+             <item>
+              <widget class="QLabel" name="offerDifferenceLabel">
+               <property name="textFormat">
+                <enum>Qt::PlainText</enum>
+               </property>
+               <property name="text">
+                <string>Разница с лучшей ценой за 500 мл — 13,00 ₽.</string>
+               </property>
+               <property name="wordWrap">
+                <bool>true</bool>
+               </property>
+               <property name="role" stdset="0">
+                <string>muted</string>
+               </property>
+              </widget>
              </item>
             </layout>
            </widget>
@@ -1208,6 +1320,9 @@ QHeaderView::section {
                 <widget class="QLabel" name="forecastProduct">
                  <property name="text">
                   <string>Гель для посуды · 500 мл</string>
+                 </property>
+                 <property name="wordWrap">
+                  <bool>true</bool>
                  </property>
                  <property name="role" stdset="0">
                   <string>muted</string>
@@ -1416,7 +1531,7 @@ QHeaderView::section {
                   <item>
                    <widget class="QLabel" name="forecastGraphTitle">
                     <property name="text">
-                     <string>Остаток в упаковке · эскиз</string>
+                     <string>Остаток за первые 30 дней</string>
                     </property>
                     <property name="alignment">
                      <set>Qt::AlignCenter</set>
@@ -1429,10 +1544,35 @@ QHeaderView::section {
                   <item>
                    <widget class="QLabel" name="forecastGraphPreview">
                     <property name="accessibleName">
-                     <string>Эскиз графика уменьшения остатка</string>
+                     <string>График остатка упаковки по дням</string>
+                    </property>
+                    <property name="minimumSize">
+                     <size>
+                      <width>0</width>
+                      <height>86</height>
+                     </size>
+                    </property>
+                    <property name="text">
+                     <string>График появится после расчёта</string>
                     </property>
                     <property name="alignment">
                      <set>Qt::AlignCenter</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="forecastGraphValue">
+                    <property name="textFormat">
+                     <enum>Qt::PlainText</enum>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="role" stdset="0">
+                     <string>muted</string>
                     </property>
                    </widget>
                   </item>
@@ -1758,7 +1898,7 @@ QHeaderView::section {
     Отдушка</string>
                    </property>
                    <property name="placeholderText">
-                    <string>По одному компоненту на строку или через точку с запятой</string>
+                    <string>Компоненты через запятую, точку с запятой или с новой строки</string>
                    </property>
                   </widget>
                  </item>
@@ -1794,7 +1934,7 @@ QHeaderView::section {
                    <property name="role" stdset="0">
                     <string>sheet</string>
                    </property>
-                   <layout class="QVBoxLayout" name="effectivenessLayout" stretch="0,0,0,0,0,0">
+                   <layout class="QVBoxLayout" name="effectivenessLayout" stretch="0,0,0,0,0,0,0">
                     <property name="spacing">
                      <number>11</number>
                     </property>
@@ -1947,6 +2087,30 @@ QHeaderView::section {
                        <string>featuredFigure</string>
                       </property>
                      </widget>
+                    </item>
+                    <item>
+                     <layout class="QHBoxLayout" name="successCostResult" stretch="1,0">
+                      <item>
+                       <widget class="QLabel" name="successCostLabel">
+                        <property name="text">
+                         <string>Стоимость успешного применения</string>
+                        </property>
+                        <property name="toolTip">
+                         <string>Затраты на все испытания делятся на число успешных применений</string>
+                        </property>
+                        <property name="wordWrap">
+                         <bool>true</bool>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="successCostValue">
+                        <property name="text">
+                         <string>—</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
                     </item>
                     <item>
                      <widget class="QLabel" name="effectivenessError">

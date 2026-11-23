@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QTimer, QUrl, QUrlQuery, pyqtSignal
@@ -6,11 +7,14 @@ from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkReques
 from PyQt6.QtWidgets import QApplication
 
 from browser_loader import BrowserCardReader
-from store_page import parse_product_page
+from store_page import (
+    BROWSER_STORE_HOSTS, SUPPORTED_STORE_HOSTS, BrowserPageRequired,
+    is_store_card, parse_product_page, store_host,
+)
 
 
 MAX_HTML_BYTES = 8 * 1024 * 1024
-DOWNLOAD_TIMEOUT_MS = 15000
+DOWNLOAD_TIMEOUT_MS = 30000
 PAGE_TOO_LARGE = "Карточка слишком большая. Введите цену вручную."
 MARKET_TRACKING = {"cpc", "sponsored"}
 
@@ -40,6 +44,7 @@ class PriceLoader(QObject):
         self.timer.timeout.connect(self.download_timed_out)
         self.reply = None
         self.browser_reader = None
+        self.request_url = None
         self.download_error = ""
         QApplication.instance().aboutToQuit.connect(self.stop_browser)
 
@@ -55,7 +60,12 @@ class PriceLoader(QObject):
             return
 
         clean_market_url(url)
-        if url.host().removeprefix("www.") in ("ozon.ru", "market.yandex.ru"):
+        host = store_host(url.toString())
+        if host in SUPPORTED_STORE_HOSTS and not is_store_card(url.toString()):
+            self.failed.emit("Укажите прямую ссылку на карточку товара.")
+            return
+        self.request_url = QUrl(url)
+        if host in BROWSER_STORE_HOSTS:
             self.load_browser(url)
             return
         request = QNetworkRequest(url)
@@ -87,13 +97,14 @@ class PriceLoader(QObject):
             store = url.host().removeprefix("www.") if url.scheme() in ("http", "https") else ""
             self.loaded.emit(store, product)
 
-    def load_browser(self, url):
+    def load_browser(self, url, announce=True):
         self.browser_reader = BrowserCardReader(url.toString(), self)
         self.browser_reader.progress.connect(self.progress)
         self.browser_reader.open_requested.connect(self.open_browser)
         self.browser_reader.finished.connect(self.finish_browser)
         self.browser_reader.start()
-        self.started.emit()
+        if announce:
+            self.started.emit()
 
     def open_browser(self, address):
         if not QDesktopServices.openUrl(QUrl(address)):
@@ -106,7 +117,7 @@ class PriceLoader(QObject):
         if reader.product is None:
             self.failed.emit(reader.error)
         else:
-            store = QUrl(reader.address).host().removeprefix("www.")
+            store = store_host(reader.address)
             self.loaded.emit(store, reader.product)
         reader.deleteLater()
 
@@ -129,16 +140,17 @@ class PriceLoader(QObject):
         reply = self.reply
         self.reply = None
         self.timer.stop()
+        use_browser = False
         try:
             if self.download_error:
-                raise ValueError(self.download_error)
+                if self.download_error == PAGE_TOO_LARGE:
+                    raise ValueError(self.download_error)
+                raise BrowserPageRequired(self.download_error)
             if reply.error() != QNetworkReply.NetworkError.NoError:
                 status = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute)
                 code = f" (HTTP {status})" if status and status >= 400 else ""
-                if status in (403, 429):
-                    raise ValueError(
-                        f"Магазин ограничил доступ{code}. Откройте карточку в браузере и загрузите сохранённую страницу через «Из HTML»."
-                    )
+                if status not in (404, 410):
+                    raise BrowserPageRequired(f"Магазин не отдал карточку приложению{code}.")
                 raise ValueError(f"Не удалось открыть карточку{code}. Проверьте ссылку или введите цену вручную.")
 
             html = bytes(reply.read(MAX_HTML_BYTES + 1) or b"")
@@ -146,10 +158,21 @@ class PriceLoader(QObject):
                 raise ValueError(PAGE_TOO_LARGE)
             content_type = bytes(reply.rawHeader(b"Content-Type")).decode("latin-1")
             product = parse_product_page(html, content_type)
-            store = reply.url().host().removeprefix("www.")
+            store = store_host(reply.url().toString())
+            if self.request_url is not None and is_store_card(self.request_url.toString()) and not (product.name and product.package):
+                raise BrowserPageRequired("В HTML нет всех данных об упаковке. Откройте карточку в браузере.")
+        except BrowserPageRequired as error:
+            if self.request_url is not None and is_store_card(self.request_url.toString()):
+                use_browser = True
+            else:
+                self.failed.emit(str(error))
         except ValueError as error:
             self.failed.emit(str(error))
         else:
-            self.loaded.emit(store, product)
+            address = self.request_url or reply.url()
+            self.loaded.emit(store, replace(product, url=address.toString(QUrl.ComponentFormattingOption.FullyEncoded)))
         finally:
             reply.deleteLater()
+        if use_browser:
+            self.progress.emit("Открываю карточку в браузере…")
+            self.load_browser(self.request_url, announce=False)
