@@ -37,9 +37,7 @@ class PersonalAccountCSV:
         buttons.addWidget(self.account_button)
 
         history_layout = window.findChild(QVBoxLayout, "historyLayout")
-        history_layout.insertLayout(
-            history_layout.indexOf(self.table) + 1, buttons
-        )
+        history_layout.addLayout(buttons)
 
         self.load_button.clicked.connect(self.load_csv)
         self.save_button.clicked.connect(self.save_csv)

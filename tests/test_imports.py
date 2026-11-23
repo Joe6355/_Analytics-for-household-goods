@@ -11,6 +11,7 @@ from PyQt6.QtNetwork import QNetworkReply
 from PyQt6.QtWidgets import QApplication
 
 from browser_loader import product_redirect_message, resolve_product_address
+from composition_analysis import analyze_components
 from main import HouseholdGoodsWindow
 from price_loader import PriceLoader
 from store_page import (
@@ -25,6 +26,18 @@ ALI_NAME = "Набор губок-щеток для мытья посуды 6 ш
 
 
 class CardParsingTests(unittest.TestCase):
+    def test_composition_keeps_a_fragrance_blend_and_percentages_together(self):
+        text = (
+            'Подготовленная вода ˃ 30%; комплекс А-тензидов (анионные ПАВ, растительное масло) 5-15%; '
+            'Консервант 0,5%; парфюмерная композиция "Алоэ" на основе масел аира, мяты, муската ˂ 5%.'
+        )
+        components, repeated = analyze_components(text)
+        self.assertEqual(repeated, [])
+        self.assertEqual([item.concentration for item in components], ["> 30%", "5-15%", "0,5%", "< 5%"])
+        self.assertEqual(components[1].role, "Моющее вещество (ПАВ)")
+        self.assertEqual(components[3].role, "Отдушка")
+        self.assertIn("аира, мяты, муската", components[3].name)
+
     def test_ozon_skips_cost_per_100_ml_in_volume_options(self):
         name = "Средство для мытья посуды SYNERGETIC 1 л"
         text = f"{name}\nОбъем, мл:\n500 36 ₽/100 мл\n1000 23 ₽/100 мл\n226 ₽\nС банками\n250 ₽\nВ корзину"

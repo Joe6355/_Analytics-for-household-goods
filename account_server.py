@@ -18,7 +18,7 @@ DEFAULT_DATABASE = Path(__file__).resolve().parent / "data" / "accounts.sqlite3"
 PASSWORD_ROUNDS = 600_000
 SESSION_SECONDS = 24 * 60 * 60
 HISTORY_LIMIT = 100
-MAX_REQUEST_BYTES = 16 * 1024
+MAX_REQUEST_BYTES = 64 * 1024
 EMAIL_PATTERN = re.compile(r"[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+")
 
 SCHEMA = """
@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS history (
     created_at TEXT NOT NULL,
     product TEXT NOT NULL,
     action TEXT NOT NULL,
-    details TEXT NOT NULL
+    details TEXT NOT NULL,
+    snapshot TEXT
 );
 CREATE INDEX IF NOT EXISTS history_by_user ON history(user_id, id);
 """
@@ -111,7 +112,7 @@ class AccountHandler(BaseHTTPRequestHandler):
             logging.exception("Ошибка базы данных личного кабинета")
             status, data = 503, {"error": "База данных временно недоступна."}
 
-        body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        body = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
@@ -152,11 +153,13 @@ class AccountHandler(BaseHTTPRequestHandler):
                 self.save_history(database, user_id)
                 return 201, {}
             rows = database.execute(
-                "SELECT created_at, product, action, details FROM history "
+                "SELECT id, created_at, product, action, details, snapshot FROM history "
                 "WHERE user_id = ? ORDER BY id DESC LIMIT ?",
                 (user_id, HISTORY_LIMIT),
             )
-            return 200, {"entries": [dict(row) for row in rows]}
+            return 200, {
+                "entries": [{**row, "snapshot": json.loads(row["snapshot"]) if row["snapshot"] else None} for row in rows],
+            }
         raise RequestError(404, "Этот адрес приложения не найден на сервере.")
 
     def register(self, database):
@@ -201,16 +204,21 @@ class AccountHandler(BaseHTTPRequestHandler):
         product = data.get("product")
         action = data.get("action")
         details = data.get("details", "")
-        if not isinstance(product, str) or not 1 <= len(product.strip()) <= 160:
+        snapshot = data.get("snapshot")
+        if not isinstance(product, str) or not product.strip():
             raise RequestError(400, "Проверьте название товара в записи истории.")
         if not isinstance(action, str) or not 1 <= len(action.strip()) <= 64:
             raise RequestError(400, "Проверьте действие в записи истории.")
-        if not isinstance(details, str) or len(details) > 600:
-            raise RequestError(400, "Сократите описание результата.")
+        if not isinstance(details, str):
+            raise RequestError(400, "Проверьте описание результата.")
+        if snapshot is not None and (
+                not isinstance(snapshot, dict) or any(type(value) not in (str, int) for value in snapshot.values())):
+            raise RequestError(400, "Проверьте параметры сохранённого расчёта.")
+        parameters = json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")) if snapshot is not None else None
         created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         database.execute(
-            "INSERT INTO history (user_id, created_at, product, action, details) VALUES (?, ?, ?, ?, ?)",
-            (user_id, created_at, product.strip(), action.strip(), details),
+            "INSERT INTO history (user_id, created_at, product, action, details, snapshot) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, created_at, product.strip(), action.strip(), details, parameters),
         )
 
 
@@ -221,6 +229,10 @@ class AccountServer(ThreadingHTTPServer):
         with closing(open_database(self.database_path)) as database:
             database.execute("PRAGMA journal_mode = WAL")
             database.executescript(SCHEMA)
+            with database:
+                database.execute("BEGIN IMMEDIATE")
+                if "snapshot" not in {row["name"] for row in database.execute("PRAGMA table_info(history)")}:
+                    database.execute("ALTER TABLE history ADD COLUMN snapshot TEXT")
         super().__init__(("127.0.0.1", port), AccountHandler)
 
 

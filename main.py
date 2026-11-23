@@ -9,7 +9,6 @@ from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 from html import escape
 from pathlib import Path
-from unicodedata import normalize
 
 from PyQt6 import uic
 from PyQt6.QtCore import QLineF, QPointF, QSignalBlocker, QTimer, Qt, QUrl
@@ -17,9 +16,10 @@ from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import QApplication, QFileDialog, QHeaderView, QInputDialog, QLabel, QMainWindow, QMenu, QMessageBox, QTableWidgetItem
 
 from account_client import AccountController
+from composition_analysis import analyze_components
 from lr5_Dsv_2_personal_account import PersonalAccountCSV
 from price_loader import PriceLoader
-from workspace_state import Comparison, LocalWorkspace, Offer, UsageSamples, WorkspaceState
+from workspace_state import DEFAULT_COMPARISON_NAME, Comparison, LocalWorkspace, Offer, UsageSamples, WorkspaceState
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -143,22 +143,6 @@ def draw_remaining_graph(remaining):
     return preview
 
 
-def composition_entries(text):
-    start = depth = 0
-    for index, char in enumerate(text):
-        if char in "([":
-            depth += 1
-        elif char in ")]":
-            depth = max(0, depth - 1)
-        if depth:
-            continue
-        decimal_comma = char == "," and 0 < index < len(text) - 1 and text[index - 1].isdigit() and text[index + 1].isdigit()
-        if char in ",;\n" and not decimal_comma:
-            yield text[start:index]
-            start = index + 1
-    yield text[start:]
-
-
 def card_address(value):
     url = QUrl(value, QUrl.ParsingMode.StrictMode)
     if url.isValid() and url.scheme() in ("http", "https") and url.host() and not url.userInfo():
@@ -179,6 +163,9 @@ class HouseholdGoodsWindow(QMainWindow):
         self.workspace_save_timer = None
         self.workspace_notice = None
         self.usage_context: tuple[Comparison, str] | None = None
+        self.selected_offer_id = None
+        self.offer_choices = {}
+        self.offer_selectors = (self.usageOfferSelector, self.forecastOfferSelector, self.characteristicsOfferSelector)
         self.set_usage_price_note("")
         load_warning = ""
         if self.local_workspace is not None:
@@ -244,18 +231,27 @@ class HouseholdGoodsWindow(QMainWindow):
         self.offersTable.itemSelectionChanged.connect(self.update_offer_buttons)
         self.offerUnit.currentTextChanged.connect(self.set_comparison_unit)
         self.offersTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        for column, width in enumerate((105, 74, 70, 100, 132), start=1):
+        self.offersTable.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.offersTable.verticalHeader().setMinimumSectionSize(34)
+        for column, width in enumerate((98, 74, 70, 96, 124), start=1):
             self.offersTable.setColumnWidth(column, width)
+        for selector in self.offer_selectors:
+            selector.currentIndexChanged.connect(lambda _i, combo=selector: self.choose_offer(combo.currentData()))
         self.load_comparison_selector()
 
         self.characteristicsProduct.setTextFormat(Qt.TextFormat.PlainText)
         self.componentCount.setTextFormat(Qt.TextFormat.PlainText)
         self.imported_composition = ""
         self.compositionInput.clear()
-        self.componentCount.clear()
-        self.compositionInput.textChanged.connect(self.componentCount.clear)
+        self.compositionTable.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.compositionTable.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.compositionTable.setColumnWidth(1, 78)
+        self.compositionTable.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.clear_composition_result()
+        self.compositionInput.textChanged.connect(self.clear_composition_result)
         self.productInput.textEdited.connect(self.clear_imported_composition)
         self.analyzeCompositionButton.clicked.connect(self.analyze_composition)
+        self.saveEffectivenessButton.clicked.connect(self.save_effectiveness)
         self.testCountInput.setValue(0)
         self.successCountInput.setValue(0)
         self.testCountInput.valueChanged.connect(self.update_effectiveness)
@@ -264,11 +260,18 @@ class HouseholdGoodsWindow(QMainWindow):
             field.textChanged.connect(self.update_effectiveness)
         self.update_effectiveness()
 
+        self.history_actions = {
+            "Расчёт расхода": (self.usagePage, lambda: self.check_usage(record=False)),
+            "Прогноз": (self.forecastPage, lambda: self.show_forecast(record=False)),
+            "Анализ состава": (self.characteristicsPage, lambda: self.analyze_composition(record=False)),
+            "Оценка эффективности": (self.characteristicsPage, self.update_effectiveness),
+        }
         self.account = AccountController(self)
         self.personal_account_csv = PersonalAccountCSV(self)
         self.demoNote.hide()
         self.sectionStack.currentChanged.connect(self.update_page)
         self.restore_draft()
+        self.update_offer_selector_selection()
         if self.local_workspace is not None:
             self.workspace_save_timer = QTimer(self)
             self.workspace_save_timer.setSingleShot(True)
@@ -325,7 +328,10 @@ class HouseholdGoodsWindow(QMainWindow):
             return
         self.comparison.name = name
         self.comparisonSelector.setItemText(self.workspace_state.active, name)
-        self.schedule_workspace_save()
+        selected = self.selected_offer_index()
+        self.update_offers_table()
+        if selected is not None:
+            self.offersTable.selectRow(selected)
 
     def delete_comparison(self):
         comparisons = self.workspace_state.comparisons
@@ -358,6 +364,53 @@ class HouseholdGoodsWindow(QMainWindow):
         self.comparison.unit = unit
         self.update_offers_table()
 
+    def load_offer_selectors(self):
+        self.offer_choices = {
+            offer.offer_id: (comparison, offer)
+            for comparison in self.workspace_state.comparisons
+            for offer in comparison.offers
+        }
+        if self.selected_offer_id not in self.offer_choices:
+            self.selected_offer_id = None
+
+        for selector in self.offer_selectors:
+            with QSignalBlocker(selector):
+                selector.clear()
+                manual = "Текущие данные" if selector is self.usageOfferSelector else "Текущие данные из «Расхода»"
+                selector.addItem(manual if self.offer_choices else "Добавьте предложение в «Ценах»")
+                for offer_id, (comparison, offer) in self.offer_choices.items():
+                    amount = format(offer.amount, "f").replace(".", ",")
+                    price = format_number(Fraction(offer.price), 2)
+                    label = f"{comparison.name} · {offer.store} · {amount} {comparison.unit} · {price} ₽"
+                    if offer.product and offer.product.casefold() != comparison.name.casefold():
+                        label += f" — {offer.product}"
+                    selector.addItem(label, offer_id)
+                    selector.setItemData(selector.count() - 1, f"<qt>{escape(label)}</qt>", Qt.ItemDataRole.ToolTipRole)
+                selector.setEnabled(bool(self.offer_choices))
+        self.update_offer_selector_selection()
+
+    def update_offer_selector_selection(self):
+        for selector in self.offer_selectors:
+            index = selector.findData(self.selected_offer_id) if self.selected_offer_id else 0
+            with QSignalBlocker(selector):
+                selector.setCurrentIndex(max(0, index))
+            selector.setToolTip(selector.currentData(Qt.ItemDataRole.ToolTipRole) or selector.currentText())
+
+    def choose_offer(self, offer_id):
+        if offer_id in self.offer_choices:
+            self.apply_offer(*self.offer_choices[offer_id])
+            if self.sectionStack.currentWidget() is self.usagePage and not self.measurementsInput.toPlainText().strip():
+                self.measurementsInput.setFocus()
+        else:
+            self.detach_offer()
+
+    def detach_offer(self):
+        self.remember_usage_samples()
+        self.usage_context = None
+        self.selected_offer_id = None
+        self.update_offer_selector_selection()
+        self.schedule_workspace_save()
+
     def draft_bindings(self):
         return (
             ("product", self.productInput.text, self.productInput.setText, self.productInput.textChanged),
@@ -372,17 +425,52 @@ class HouseholdGoodsWindow(QMainWindow):
             ("successes", self.successCountInput.value, self.successCountInput.setValue, self.successCountInput.valueChanged),
         )
 
-    def restore_draft(self):
-        saved = self.workspace_state.draft
+    def draft_values(self):
+        values = {key: read() for key, read, _, _ in self.draft_bindings()}
+        values.update(imported_composition=self.imported_composition, price_note=self.usage_price_note)
+        return values
+
+    def apply_draft_values(self, saved):
         for key, read, write, _ in self.draft_bindings():
             value = saved.get(key)
             if type(value) is type(read()):
                 write(value)
-        if saved.get("imported_composition") == self.compositionInput.toPlainText():
-            self.imported_composition = self.compositionInput.toPlainText()
+        composition = self.compositionInput.toPlainText()
+        self.imported_composition = composition if saved.get("imported_composition") == composition else ""
         price_note = saved.get("price_note")
-        if isinstance(price_note, str):
-            self.set_usage_price_note(price_note)
+        self.set_usage_price_note(price_note if isinstance(price_note, str) else "")
+
+    def can_open_history_record(self, action, snapshot):
+        spinboxes = (("frequency", self.frequencyInput), ("tests", self.testCountInput),
+                     ("successes", self.successCountInput))
+        return (
+            action in self.history_actions and isinstance(snapshot, dict)
+            and all(type(snapshot.get(key)) is type(read()) for key, read, _, _ in self.draft_bindings())
+            and self.packageUnit.findText(snapshot["unit"]) >= 0
+            and self.frequencyPeriod.findText(snapshot["period"]) >= 0
+            and all(widget.minimum() <= snapshot[key] <= widget.maximum() for key, widget in spinboxes)
+        )
+
+    def open_history_record(self, action, snapshot):
+        if not self.can_open_history_record(action, snapshot):
+            return
+        self.detach_offer()
+        self.apply_draft_values(snapshot)
+        self.clear_usage_result()
+        self.clear_forecast()
+        self.update_characteristics_package()
+        self.analyze_composition(record=False, show_empty=False)
+        page, calculate = self.history_actions[action]
+        self.sectionList.setCurrentRow(self.sectionStack.indexOf(page))
+        calculate()
+        self.schedule_workspace_save()
+
+    def restore_draft(self):
+        saved = self.workspace_state.draft
+        self.apply_draft_values(saved)
+        offer_id = saved.get("offer_id")
+        if isinstance(offer_id, str) and offer_id in self.offer_choices:
+            self.selected_offer_id = offer_id
 
         comparisons = self.workspace_state.comparisons
         unit = self.packageUnit.currentText()
@@ -415,6 +503,7 @@ class HouseholdGoodsWindow(QMainWindow):
         self.usage_price_note = note
         self.usagePriceNote.setText(f"Условие цены — {note}" if note else "")
         self.usagePriceNote.setVisible(bool(note))
+        self.update_forecast_product()
 
     def schedule_workspace_save(self):
         if self.workspace_save_timer is not None:
@@ -422,12 +511,11 @@ class HouseholdGoodsWindow(QMainWindow):
 
     def save_workspace(self):
         self.remember_usage_samples()
-        self.workspace_state.draft = {key: read() for key, read, _, _ in self.draft_bindings()}
+        self.workspace_state.draft = self.draft_values()
         comparison = self.usage_context[0] if self.usage_context is not None else None
         self.workspace_state.draft.update(
             comparison=next((i for i, item in enumerate(self.workspace_state.comparisons) if item is comparison), None),
-            imported_composition=self.imported_composition,
-            price_note=self.usage_price_note,
+            offer_id=self.selected_offer_id,
         )
         backup = self.local_workspace.save(self.workspace_state)
         if self.workspace_notice is not None:
@@ -464,6 +552,8 @@ class HouseholdGoodsWindow(QMainWindow):
         page = self.sectionStack.currentWidget()
         if page is self.characteristicsPage:
             self.update_characteristics_package()
+            if self.imported_composition and self.compositionTable.rowCount() == 0:
+                self.analyze_composition(record=False, show_empty=False)
         elif page is self.accountPage:
             self.account.refresh_history()
 
@@ -482,8 +572,7 @@ class HouseholdGoodsWindow(QMainWindow):
     def change_usage_unit(self, unit):
         had_measurements = bool(self.packageInput.text().strip() or self.measurementsInput.toPlainText().strip())
         if self.usage_context is not None:
-            self.remember_usage_samples()
-            self.usage_context = None
+            self.detach_offer()
             self.set_usage_samples(UsageSamples())
         self.packageInput.clear()
         self.measurementsInput.clear()
@@ -500,7 +589,26 @@ class HouseholdGoodsWindow(QMainWindow):
             measurements=self.measurementsInput.toPlainText(),
         )
 
-    def check_usage(self):
+    def calculation_inputs(self):
+        unit = self.packageUnit.currentText()
+        inputs = [
+            f"Фасовка — {self.packageInput.text()} {unit}",
+            f"Цена упаковки — {self.packagePriceInput.text()} ₽",
+        ]
+        if self.selected_offer_id in self.offer_choices:
+            _, offer = self.offer_choices[self.selected_offer_id]
+            inputs.insert(0, f"Магазин — {offer.store}")
+        if self.usage_price_note:
+            inputs.append(f"Условие цены — {self.usage_price_note}")
+        inputs.append(f"Замеры ({unit})\n{self.measurementsInput.toPlainText().strip()}")
+        return "\n".join(inputs)
+
+    def record_calculation(self, action, details, *, success_message=""):
+        self.account.record(
+            action, self.productInput.text(), details, snapshot=self.draft_values(), success_message=success_message,
+        )
+
+    def check_usage(self, *, record=True):
         self.clear_usage_result()
         self.calculateUsageButton.setEnabled(False)
         try:
@@ -527,13 +635,13 @@ class HouseholdGoodsWindow(QMainWindow):
             self.sampleCountValue.setText(str(len(samples)))
             self.sampleRangeValue.setText(f"{range_text} {self.packageUnit.currentText()}")
             self.statusBar().showMessage("Расход рассчитан.", 3000)
-            details = (
-                f"Средний расход — {self.averageUsageValue.text()}. "
-                f"Стоимость применения — {cost_text} ₽. Полных применений — {full_uses_text}."
-            )
-            if self.usage_price_note:
-                details += f" Условие цены — {self.usage_price_note}."
-            self.account.record("Расчёт расхода", self.productInput.text(), details)
+            if record:
+                details = (
+                    f"Средний расход — {self.averageUsageValue.text()}\n"
+                    f"Стоимость применения — {cost_text} ₽\n"
+                    f"Полных применений — {full_uses_text}\n\n{self.calculation_inputs()}"
+                )
+                self.record_calculation("Расчёт расхода", details)
         finally:
             self.calculateUsageButton.setEnabled(True)
 
@@ -542,8 +650,16 @@ class HouseholdGoodsWindow(QMainWindow):
             for column, text in enumerate(values, start=1):
                 self.forecastTable.item(row, column).setText(text)
 
+    def update_forecast_product(self):
+        name = self.productInput.text().strip()
+        amount = self.packageInput.text().strip()
+        text = f"{name} · {amount} {self.packageUnit.currentText()}" if name and amount else name
+        if self.usage_price_note:
+            text += f"\nУсловие цены — {self.usage_price_note}"
+        self.forecastProduct.setText(text.strip() or "Данные из вкладки «Расход»")
+
     def clear_forecast(self):
-        self.forecastProduct.setText("Данные из вкладки «Расход»")
+        self.update_forecast_product()
         self.forecastHint.hide()
         self.durationValue.setText("—")
         self.durationValue.show()
@@ -553,7 +669,7 @@ class HouseholdGoodsWindow(QMainWindow):
         self.forecastGraphValue.hide()
         self.set_forecast_rows((("—", "—", "—"),) * self.forecastTable.rowCount())
 
-    def show_forecast(self):
+    def show_forecast(self, *, record=True):
         try:
             amount, price, samples = self.read_usage_fields()
         except ValueError as error:
@@ -583,12 +699,7 @@ class HouseholdGoodsWindow(QMainWindow):
                 format_number(cost_per_use * uses, 2),
             ))
 
-        product = self.productInput.text().strip()
-        package = format(amount, "f").replace(".", ",")
-        product_summary = f"{product} · {package} {unit}"
-        if self.usage_price_note:
-            product_summary += f"\nУсловие цены — {self.usage_price_note}"
-        self.forecastProduct.setText(product_summary)
+        self.update_forecast_product()
         self.forecastHint.hide()
         self.durationValue.show()
         self.forecastDurationCaption.show()
@@ -596,10 +707,15 @@ class HouseholdGoodsWindow(QMainWindow):
         self.durationValue.setText(f"≈ {days_text} дн.")
         self.set_forecast_rows(rows)
         self.show_remaining_graph(Fraction(amount), average, full_uses, annual_uses, unit)
-        details = f"Упаковки хватит на {days_text} дн. Затраты — {monthly_row[2]} ₽ в месяц и {yearly_row[2]} ₽ в год."
-        if self.usage_price_note:
-            details += f" Условие цены — {self.usage_price_note}."
-        self.account.record("Прогноз", product, details)
+        if record:
+            details = (
+                f"Упаковки хватит примерно на {days_text} дн.\n"
+                f"За месяц — {monthly_row[0]} применений, {monthly_row[1]}, {monthly_row[2]} ₽\n"
+                f"За год — {yearly_row[0]} применений, {yearly_row[1]}, {yearly_row[2]} ₽\n\n"
+                f"Частота — {self.frequencyInput.value()} {self.frequencyPeriod.currentText()}\n"
+                f"{self.calculation_inputs()}"
+            )
+            self.record_calculation("Прогноз", details)
 
     def show_remaining_graph(self, amount, average, full_uses, annual_uses, unit):
         remaining = [
@@ -667,6 +783,8 @@ class HouseholdGoodsWindow(QMainWindow):
         details = f"{price_text} ₽ за {package_text}."
         if product.price_note:
             details += f" {product.price_note}."
+        if self.offer_card_url:
+            details += f"\nКарточка — {self.offer_card_url}"
         self.account.record("Загрузка цены", product.name, f"{store} — {details}" if store else details)
 
         missing = [field for value, field in ((store, "магазин"), (unit, "фасовку")) if not value]
@@ -711,8 +829,21 @@ class HouseholdGoodsWindow(QMainWindow):
         self.refreshing_offer = None
         self.set_price_loading(False)
         self.update_offers_table()
+        if self.selected_offer_id == offer.offer_id and self.usage_price_note == offer.price_note:
+            try:
+                current_price = read_number(self.packagePriceInput.text(), "")
+            except (ValueError, InvalidOperation):
+                current_price = None
+            if current_price == offer.price:
+                self.packagePriceInput.setText(format(updated.price, "f").replace(".", ","))
+                self.set_usage_price_note(updated.price_note)
         self.offersTable.selectRow(next(row for row, item in enumerate(self.offers) if item is updated))
-        self.account.record("Обновление цены", updated.product, f"{updated.store} — {updated.price:f} ₽.")
+        old_price = format_number(Fraction(offer.price), 2)
+        new_price = format_number(Fraction(updated.price), 2)
+        details = f"{updated.store}\nПрежняя цена — {old_price} ₽\nОбновлённая цена — {new_price} ₽"
+        if updated.price_note:
+            details += f"\nУсловие цены — {updated.price_note}"
+        self.account.record("Обновление цены", updated.product, details)
         self.statusBar().showMessage("Цена обновлена.", 6000)
 
     def add_offer(self):
@@ -731,8 +862,17 @@ class HouseholdGoodsWindow(QMainWindow):
         ))
         self.offers.sort(key=lambda offer: offer.price_per_unit)
         self.update_offers_table()
-        if len(self.offers) >= 2:
-            self.account.record("Сравнение цен", self.offer_name, self.bestPriceLabel.text())
+        if len(self.offers) >= 2 and self.account.token:
+            details = [self.bestPriceLabel.text(), ""]
+            heading = self.offersTable.horizontalHeaderItem(4).text().removesuffix(", ₽").casefold()
+            for row in range(self.offersTable.rowCount()):
+                _, store, package, price, normalized_price, info = (
+                    self.offersTable.item(row, column).text() for column in range(self.offersTable.columnCount())
+                )
+                details.append(f"{store} · {package} · {price} ₽ ({normalized_price} ₽ {heading})")
+                if info != "—":
+                    details.append(info)
+            self.account.record("Сравнение цен", self.comparison.name, "\n".join(details))
         self.clear_offer_draft()
         self.storeInput.setFocus()
         self.statusBar().clearMessage()
@@ -758,12 +898,28 @@ class HouseholdGoodsWindow(QMainWindow):
         if row is None:
             return
 
-        offer = self.offers[row]
-        unit = self.offerUnit.currentText()
-        comparison = self.comparison
+        self.apply_offer(self.comparison, self.offers[row])
+        self.sectionList.setCurrentRow(self.sectionStack.indexOf(self.usagePage))
+        if not self.productInput.text().strip():
+            self.productInput.setFocus()
+            message = "Укажите название товара, чтобы рассчитать расход."
+        elif not self.measurementsInput.toPlainText().strip():
+            self.measurementsInput.setFocus()
+            message = "Добавьте замеры для выбранного товара."
+        else:
+            self.calculateUsageButton.setFocus()
+            message = "Предложение перенесено в расчёт расхода."
+        if self.imported_composition:
+            message += " Состав доступен во вкладке «Характеристики»."
+        self.statusBar().showMessage(message, 7000)
+
+    def apply_offer(self, comparison, offer):
+        unit = comparison.unit
         same_list = self.usage_context is not None and self.usage_context[0] is comparison
         current_product = self.productInput.text().strip()
         product = offer.product or (current_product if same_list else "")
+        if not product and comparison.name != DEFAULT_COMPARISON_NAME:
+            product = comparison.name
         same_title = product.casefold() == current_product.casefold()
         self.remember_usage_samples()
         samples = comparison.usage_samples.get(unit)
@@ -777,9 +933,10 @@ class HouseholdGoodsWindow(QMainWindow):
 
         current_composition = self.compositionInput.toPlainText()
         can_replace_composition = not current_composition.strip() or current_composition == self.imported_composition
-        if not same_title or (offer.composition and can_replace_composition):
+        if not same_title or not same_list or can_replace_composition:
             self.compositionInput.setPlainText(offer.composition)
             self.imported_composition = offer.composition
+        self.compositionInput.setPlaceholderText("В карточке состава нет. Вставьте его с этикетки.")
 
         self.productInput.setText(product)
         with QSignalBlocker(self.packageUnit):
@@ -790,21 +947,11 @@ class HouseholdGoodsWindow(QMainWindow):
         self.set_usage_unit(unit)
         self.clear_forecast()
         self.usage_context = (comparison, unit)
+        self.selected_offer_id = offer.offer_id
+        self.update_offer_selector_selection()
+        self.update_characteristics_package()
+        self.analyze_composition(record=False, show_empty=False)
         self.schedule_workspace_save()
-        self.sectionList.setCurrentRow(self.sectionStack.indexOf(self.usagePage))
-
-        if not product:
-            self.productInput.setFocus()
-            message = "Укажите название товара, чтобы рассчитать расход."
-        elif not self.measurementsInput.toPlainText().strip():
-            self.measurementsInput.setFocus()
-            message = "Добавьте замеры для выбранного товара."
-        else:
-            self.calculateUsageButton.setFocus()
-            message = "Предложение перенесено в расчёт расхода."
-        if self.imported_composition and self.compositionInput.toPlainText() == self.imported_composition:
-            message += " Состав доступен во вкладке «Характеристики»."
-        self.statusBar().showMessage(message, 7000)
 
     def clear_imported_composition(self):
         if self.imported_composition and self.imported_composition == self.compositionInput.toPlainText():
@@ -949,8 +1096,8 @@ class HouseholdGoodsWindow(QMainWindow):
             normalized_price = format_number(offer.price_per_unit * scale, 2)
             loaded_at = datetime.fromisoformat(offer.loaded_at).astimezone().strftime("%d.%m.%y %H:%M") if offer.loaded_at else ""
             card_info = "\n".join(value for value in (loaded_at, offer.price_note) if value) or "—"
-            table.setRowHeight(row, 2 * table.fontMetrics().height() + 10 if "\n" in card_info else 34)
-            for column, text in enumerate((offer.product or "—", offer.store, f"{amount} {unit}", price, normalized_price, card_info)):
+            product = offer.product or (self.comparison.name if self.comparison.name != DEFAULT_COMPARISON_NAME else "—")
+            for column, text in enumerate((product, offer.store, f"{amount} {unit}", price, normalized_price, card_info)):
                 item = QTableWidgetItem(text)
                 if 2 <= column <= 4:
                     item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -960,6 +1107,7 @@ class HouseholdGoodsWindow(QMainWindow):
                     item.setToolTip(f"<qt>{escape(text)}</qt>")
                 table.setItem(row, column, item)
         self.update_offer_buttons()
+        self.load_offer_selectors()
         self.schedule_workspace_save()
 
         if len(self.offers) < 2:
@@ -995,28 +1143,32 @@ class HouseholdGoodsWindow(QMainWindow):
         share = 100 * average_usage(samples) / Fraction(amount)
         self.packageShareLabel.setText(f"Расход за применение — {format_quantity(share)} % упаковки")
 
-    def analyze_composition(self):
-        components = {}
-        repeated = {}
-        for entry in composition_entries(self.compositionInput.toPlainText()):
-            component = " ".join(normalize("NFC", entry).split())
-            if not component:
-                continue
-            key = component.casefold()
-            if key in components:
-                repeated[key] = components[key]
-            else:
-                components[key] = component
+    def clear_composition_result(self):
+        self.compositionTable.setRowCount(0)
+        self.componentCount.clear()
+        self.compositionNotice.hide()
 
+    def analyze_composition(self, *, record=True, show_empty=True):
+        components, repeated = analyze_components(self.compositionInput.toPlainText())
+        self.clear_composition_result()
         if not components:
-            self.componentCount.setText("Введите состав с этикетки.")
+            if show_empty:
+                self.componentCount.setText("Введите состав с этикетки.")
             return
+
+        self.compositionTable.setRowCount(len(components))
+        for row, component in enumerate(components):
+            for column, text in enumerate((component.name, component.concentration or "—", component.role, component.note)):
+                self.compositionTable.setItem(row, column, QTableWidgetItem(text))
 
         result = f"Уникальных компонентов — {len(components)}"
         if repeated:
-            result += f"\nПовторы — {', '.join(repeated.values())}"
+            result += f"\nПовторы — {', '.join(repeated)}"
         self.componentCount.setText(result)
-        self.account.record("Анализ состава", self.productInput.text(), result)
+        self.compositionNotice.show()
+        if record:
+            lines = [f"{item.name} [{item.concentration or 'доля не указана'}] — {item.role}. {item.note}" for item in components]
+            self.record_calculation("Анализ состава", "\n".join([result, "", *lines]))
 
     def update_effectiveness(self):
         tested = self.testCountInput.value()
@@ -1026,21 +1178,38 @@ class HouseholdGoodsWindow(QMainWindow):
         error = ""
         if successful > tested:
             error = f"Успешных применений может быть от 0 до {tested}."
-        elif tested:
+        elif not tested:
+            error = "Введите число испытаний и сколько из них было успешными."
+        else:
             percent = Fraction(100 * successful, tested)
             result = f"{format_quantity(percent)} %"
             if successful:
                 try:
                     amount, price, samples = self.read_usage_fields()
                 except (ValueError, InvalidOperation):
-                    pass
+                    error = "Для расчёта стоимости добавьте фасовку, цену и замеры в «Расходе»."
                 else:
                     _, cost_per_use, _ = calculate_usage(amount, price, samples)
                     success_cost = f"{format_number(cost_per_use * Fraction(tested, successful), 2)} ₽"
+            else:
+                error = "Стоимость успешного применения появится, когда будет хотя бы один успех."
         self.effectivenessValue.setText(result)
         self.successCostValue.setText(success_cost)
         self.effectivenessError.setText(error)
         self.effectivenessError.setVisible(bool(error))
+        self.saveEffectivenessButton.setEnabled(0 < tested and successful <= tested)
+
+    def save_effectiveness(self):
+        if not self.account.token:
+            self.statusBar().showMessage("Войдите в личный кабинет, чтобы сохранить оценку в истории.", 8000)
+            return
+        details = (
+            f"Испытаний — {self.testCountInput.value()}\n"
+            f"Успешных — {self.successCountInput.value()}\n"
+            f"Доля успешных — {self.effectivenessValue.text()}\n"
+            f"Стоимость успешного применения — {self.successCostValue.text()}"
+        )
+        self.record_calculation("Оценка эффективности", details, success_message="Оценка сохранена в истории.")
 
 
 if __name__ == "__main__":

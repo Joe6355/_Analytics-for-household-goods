@@ -9,6 +9,7 @@ from PyQt6.QtCore import QIODevice, QLockFile, QSaveFile
 
 
 UNITS = {"мл", "г", "шт."}
+DEFAULT_COMPARISON_NAME = "Основное сравнение"
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,7 @@ class Offer:
     composition: str = ""
     card_url: str = ""
     loaded_at: str = ""
+    offer_id: str = field(default_factory=lambda: uuid4().hex)
 
     @property
     def price_per_unit(self):
@@ -44,7 +46,7 @@ class Comparison:
 
 @dataclass
 class WorkspaceState:
-    comparisons: list[Comparison] = field(default_factory=lambda: [Comparison("Основное сравнение")])
+    comparisons: list[Comparison] = field(default_factory=lambda: [Comparison(DEFAULT_COMPARISON_NAME)])
     active: int = 0
     draft: dict[str, str | int | None] = field(default_factory=dict)
 
@@ -55,6 +57,7 @@ def decode_state(data):
         if payload["version"] != 1:
             raise ValueError("Формат сохранённых данных не поддерживается.")
         comparisons = []
+        offer_ids = set()
         for value in payload["comparisons"]:
             comparison = Comparison(value["name"], value["unit"])
             if not comparison.name.strip() or comparison.unit not in UNITS:
@@ -65,8 +68,12 @@ def decode_state(data):
                     raise ValueError("Неверная цена или фасовка в списке сравнения.")
                 if not all(isinstance(text, str) for text in (
                     offer.store, offer.product, offer.price_note, offer.composition, offer.card_url, offer.loaded_at,
+                    offer.offer_id,
                 )):
                     raise ValueError("Неверные данные предложения.")
+                if not offer.offer_id or offer.offer_id in offer_ids:
+                    raise ValueError("Неверный идентификатор предложения.")
+                offer_ids.add(offer.offer_id)
                 if offer.loaded_at:
                     datetime.fromisoformat(offer.loaded_at)
                 comparison.offers.append(offer)

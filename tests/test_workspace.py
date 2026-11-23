@@ -282,6 +282,49 @@ class WorkspaceTests(unittest.TestCase):
                 self.assertEqual(window.productInput.text(), "Fairy / Лимон")
                 self.assertEqual(window.measurementsInput.toPlainText(), "8\n10")
 
+    def test_product_selectors_share_the_offer_without_mixing_measurements(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "workspace.json"
+            with open_window(path) as window:
+                self.assertIs(window.sectionStack.currentWidget(), window.pricesPage)
+                self.assertEqual(window.sectionList.item(0).text(), "Цены")
+                self.assertEqual(window.sectionList.item(1).text(), "Расход")
+                self.new_comparison(window, "Гель Алоэ")
+                window.apply_loaded_product(
+                    "Маркет", ProductPage(Decimal(250), CARD_URL, "Гель 500 мл", (Decimal(500), "мл"),
+                                         composition="Вода; анионные ПАВ 5-15%; Отдушка"),
+                )
+                gel_id = window.offers[0].offer_id
+                window.sectionList.setCurrentRow(window.sectionStack.indexOf(window.usagePage))
+                window.usageOfferSelector.setCurrentIndex(window.usageOfferSelector.findData(gel_id))
+                window.measurementsInput.setPlainText("8\n10")
+
+                self.new_comparison(window, "Губки")
+                window.apply_loaded_product("Магазин", ProductPage(Decimal(70), "", "Губки", (Decimal(5), "шт.")))
+                sponges_id = window.offers[0].offer_id
+                window.sectionList.setCurrentRow(window.sectionStack.indexOf(window.forecastPage))
+                window.forecastOfferSelector.setCurrentIndex(window.forecastOfferSelector.findData(sponges_id))
+                self.assertIs(window.sectionStack.currentWidget(), window.forecastPage)
+                self.assertEqual(window.packageUnit.currentText(), "шт.")
+                self.assertEqual(window.measurementsInput.toPlainText(), "")
+                window.measurementsInput.setPlainText("1")
+                window.calculateForecastButton.click()
+                self.assertIn("Губки", window.forecastProduct.text())
+
+                window.sectionList.setCurrentRow(window.sectionStack.indexOf(window.characteristicsPage))
+                window.characteristicsOfferSelector.setCurrentIndex(window.characteristicsOfferSelector.findData(gel_id))
+                self.assertEqual(window.measurementsInput.toPlainText(), "8\n10")
+                self.assertEqual(window.compositionTable.rowCount(), 3)
+                self.assertEqual(window.compositionTable.item(1, 1).text(), "5-15%")
+                self.assertEqual(window.usageOfferSelector.currentData(), gel_id)
+                self.assertEqual(window.forecastOfferSelector.currentData(), gel_id)
+
+            with open_window(path) as window:
+                self.assertEqual(window.forecastOfferSelector.currentData(), gel_id)
+                self.assertEqual(window.measurementsInput.toPlainText(), "8\n10")
+                window.forecastOfferSelector.setCurrentIndex(window.forecastOfferSelector.findData(sponges_id))
+                self.assertEqual(window.measurementsInput.toPlainText(), "1")
+
     def test_corrupt_workspace_is_backed_up_before_saving_new_draft(self):
         with TemporaryDirectory() as directory:
             path = Path(directory) / "workspace.json"

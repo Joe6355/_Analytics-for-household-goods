@@ -91,3 +91,38 @@ class AccountCSVTests(unittest.TestCase):
         self.account.show_session()
         self.assertIsNone(self.account.csv_rows)
         self.assertEqual(self.window.historyTable.rowCount(), 0)
+
+    def test_history_shows_full_details_and_reopens_original_inputs(self):
+        self.account.token = "test-token"
+        title = ("Гель для мытья посуды с длинным названием " * 5).strip()
+        samples = "\n".join(["8", "10"] * 175)
+        self.window.productInput.setText(title)
+        self.window.packageInput.setText("900")
+        self.window.packagePriceInput.setText("270")
+        self.window.measurementsInput.setPlainText(samples)
+        with patch.object(self.account, "send") as send:
+            self.window.calculateUsageButton.click()
+            payload = send.call_args.kwargs["data"]
+            self.assertEqual(payload["product"], title)
+            self.assertGreater(len(payload["details"]), 600)
+            self.account.show_history([
+                {"id": 3, **payload},
+                {"id": 2, "product": "Губки", "action": "Расчёт расхода", "details": "Старая запись"},
+            ])
+            self.window.historySearchInput.setText("Полных применений")
+            self.assertFalse(self.window.historyTable.isRowHidden(0))
+            self.assertTrue(self.window.historyTable.isRowHidden(1))
+            self.window.historyTable.selectRow(0)
+            self.assertTrue(self.window.historyDetails.toPlainText().endswith(samples))
+            self.assertTrue(self.window.openHistoryButton.isEnabled())
+            self.window.packagePriceInput.setText("999")
+            self.window.openHistoryButton.click()
+            self.assertIs(self.window.sectionStack.currentWidget(), self.window.usagePage)
+            self.assertEqual(self.window.packagePriceInput.text(), "270")
+            self.assertEqual(self.window.usageCostValue.text(), "2,70 ₽")
+            self.assertEqual(send.call_count, 1)
+
+        self.window.historySearchInput.clear()
+        self.window.historyTable.selectRow(1)
+        self.assertIn("Старая запись", self.window.historyDetails.toPlainText())
+        self.assertFalse(self.window.openHistoryButton.isEnabled())

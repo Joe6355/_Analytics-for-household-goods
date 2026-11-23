@@ -1,16 +1,27 @@
 import json
 import os
 import re
+from dataclasses import dataclass
 from html import escape
 
-from PyQt6.QtCore import QByteArray, QDateTime, QObject, Qt, QUrl
+from PyQt6.QtCore import QByteArray, QDateTime, QObject, QSignalBlocker, Qt, QUrl
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
-from PyQt6.QtWidgets import QTableWidgetItem
+from PyQt6.QtWidgets import QApplication, QHeaderView, QTableWidgetItem
 
 
 DEFAULT_API_URL = "http://127.0.0.1:8765"
-MAX_RESPONSE_BYTES = 1024 * 1024
+MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_-]{43}")
+
+
+@dataclass(frozen=True)
+class HistoryRow:
+    date: str
+    product: str
+    action: str
+    details: str
+    entry_id: int | None = None
+    snapshot: dict | None = None
 
 
 class AccountController(QObject):
@@ -23,6 +34,7 @@ class AccountController(QObject):
         self.history_request = 0
         self.server_rows = []
         self.csv_rows = None
+        self.displayed_rows = []
 
         window.accountStatus.setTextFormat(Qt.TextFormat.PlainText)
         window.historyHint.setTextFormat(Qt.TextFormat.PlainText)
@@ -30,6 +42,17 @@ class AccountController(QObject):
         window.signInButton.clicked.connect(self.sign_in_or_out)
         window.registerButton.clicked.connect(lambda: self.authenticate("/register"))
         window.passwordInput.returnPressed.connect(self.sign_in_or_out)
+        table = window.historyTable
+        table.horizontalHeader().setStretchLastSection(False)
+        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        table.verticalHeader().setMinimumSectionSize(34)
+        table.setColumnWidth(0, 122)
+        table.setColumnWidth(2, 142)
+        table.itemSelectionChanged.connect(self.show_selected_record)
+        window.historySearchInput.textChanged.connect(self.filter_history)
+        window.copyHistoryButton.clicked.connect(self.copy_selected_record)
+        window.openHistoryButton.clicked.connect(self.open_selected_record)
         self.show_session()
 
     def send(self, path, on_finished, *, data=None, token=None):
@@ -52,7 +75,7 @@ class AccountController(QObject):
             reply = self.network.get(request)
         else:
             request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
-            body = QByteArray(json.dumps(data, ensure_ascii=False).encode("utf-8"))
+            body = QByteArray(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
             reply = self.network.post(request, body)
         reply.setReadBufferSize(MAX_RESPONSE_BYTES + 1)
         reply.readyRead.connect(lambda: self.check_response_size(reply))
@@ -140,7 +163,8 @@ class AccountController(QObject):
         window.accountStatus.setText("" if signed_in else "Для регистрации нужен пароль от 15 символов.")
         self.server_rows = []
         self.csv_rows = None
-        window.historyTable.setRowCount(0)
+        window.historySearchInput.clear()
+        self.display_history([])
         window.historyHint.setText("" if signed_in else "История появится после входа.")
 
     def end_expired_session(self):
@@ -182,27 +206,95 @@ class AccountController(QObject):
             product = str(entry.get("product", "—"))
             action = str(entry.get("action", "—"))
             details = str(entry.get("details", ""))
-            rows.append((date, product, action, details))
+            entry_id = entry.get("id")
+            snapshot = entry.get("snapshot")
+            rows.append(HistoryRow(
+                date, product, action, details,
+                entry_id if type(entry_id) is int else None,
+                snapshot if isinstance(snapshot, dict) else None,
+            ))
         self.server_rows = rows
         if self.csv_rows is None:
             self.display_history(rows)
-            self.window.historyHint.setText("Наведи на действие, чтобы посмотреть результат." if rows else "Пока пусто.")
+            self.window.historyHint.setText("Выберите запись, чтобы увидеть исходные данные и итог." if rows else "Пока пусто.")
 
     def display_history(self, rows):
         table = self.window.historyTable
-        table.setRowCount(len(rows))
-        for row, (date, product, action, details) in enumerate(rows):
-            for column, text in enumerate((date, product, action)):
-                item = QTableWidgetItem(text)
-                tip = details if column == 2 and details else text
-                item.setToolTip("<qt>" + escape(tip).replace("\n", "<br>") + "</qt>")
-                if column == 2:
-                    item.setData(Qt.ItemDataRole.UserRole, details)
-                table.setItem(row, column, item)
+        previous = self.selected_record()
+        self.displayed_rows = rows
+        with QSignalBlocker(table):
+            table.clearSelection()
+            table.setRowCount(len(rows))
+            for index, row in enumerate(rows):
+                for column, text in enumerate((row.date, row.product, row.action)):
+                    item = QTableWidgetItem(text)
+                    preview = row.details if column == 2 and row.details else text
+                    if column == 2 and len(preview) > 200:
+                        preview = preview[:199] + "…"
+                    item.setToolTip("<qt>" + escape(preview).replace("\n", "<br>") + "</qt>")
+                    if column == 2:
+                        item.setData(Qt.ItemDataRole.UserRole, row.details)
+                    table.setItem(index, column, item)
+                if previous and (row == previous or row.entry_id is not None and row.entry_id == previous.entry_id):
+                    table.selectRow(index)
+        self.filter_history()
+
+    def selected_record(self):
+        selected = self.window.historyTable.selectionModel().selectedRows()
+        if selected:
+            index = selected[0].row()
+            if 0 <= index < len(self.displayed_rows) and not self.window.historyTable.isRowHidden(index):
+                return self.displayed_rows[index]
+        return None
+
+    def filter_history(self):
+        table = self.window.historyTable
+        query = self.window.historySearchInput.text().strip().casefold()
+        matching = 0
+        with QSignalBlocker(table):
+            for index, row in enumerate(self.displayed_rows):
+                match = query in " ".join((row.date, row.product, row.action, row.details)).casefold()
+                matching += match
+                table.setRowHidden(index, not match)
+            if self.selected_record() is None:
+                table.clearSelection()
+        self.window.historyDetails.setPlaceholderText(
+            "По этому запросу ничего не найдено." if query and not matching
+            else "Выберите запись, чтобы увидеть подробности"
+        )
+        self.show_selected_record()
+
+    def show_selected_record(self):
+        window = self.window
+        row = self.selected_record()
+        if row is None:
+            window.historyDetails.clear()
+            window.copyHistoryButton.setEnabled(False)
+            window.openHistoryButton.setEnabled(False)
+            return
+
+        details = row.details or "В записи сохранились дата, товар и действие."
+        window.historyDetails.setPlainText(f"{row.action} — {row.date}\n{row.product}\n\n{details}")
+        window.copyHistoryButton.setEnabled(True)
+        can_open = window.can_open_history_record(row.action, row.snapshot)
+        window.openHistoryButton.setEnabled(can_open)
+        window.openHistoryButton.setToolTip(
+            "Открыть экран с сохранёнными параметрами" if can_open else "Для этой записи сохранены только подробности"
+        )
+
+    def copy_selected_record(self):
+        if self.selected_record() is not None:
+            QApplication.clipboard().setText(self.window.historyDetails.toPlainText())
+            self.window.statusBar().showMessage("Запись скопирована.", 3000)
+
+    def open_selected_record(self):
+        row = self.selected_record()
+        if row is not None:
+            self.window.open_history_record(row.action, row.snapshot)
 
     def show_csv_history(self, rows):
-        self.csv_rows = rows
-        self.display_history(rows)
+        self.csv_rows = [HistoryRow(*row) for row in rows]
+        self.display_history(self.csv_rows)
         self.window.historyHint.setText(
             f"История из CSV: {len(rows)} записей. Для возврата нажмите «История аккаунта»."
         )
@@ -213,11 +305,13 @@ class AccountController(QObject):
         self.window.historyHint.setText("Пока пусто." if self.token else "История появится после входа.")
         self.refresh_history()
 
-    def record(self, action, product, details):
+    def record(self, action, product, details, *, snapshot=None, success_message=""):
         token = self.token
         if not token:
             return
-        payload = {"action": action, "product": product.strip()[:160] or "Без названия", "details": details[:600]}
+        payload = {"action": action, "product": product.strip() or "Без названия", "details": details}
+        if snapshot is not None:
+            payload["snapshot"] = snapshot
 
         def saved(status, _data, error):
             if token != self.token:
@@ -227,7 +321,10 @@ class AccountController(QObject):
                 self.window.statusBar().showMessage("Сеанс завершён. Войдите снова, чтобы сохранять историю.", 8000)
             elif error:
                 self.window.statusBar().showMessage(f"Не удалось сохранить действие. {error}", 8000)
-            elif self.window.sectionStack.currentWidget() is self.window.accountPage:
-                self.refresh_history()
+            else:
+                if success_message:
+                    self.window.statusBar().showMessage(success_message, 4500)
+                if self.window.sectionStack.currentWidget() is self.window.accountPage:
+                    self.refresh_history()
 
         self.send("/history", saved, data=payload, token=token)
