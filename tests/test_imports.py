@@ -2,6 +2,9 @@ import json
 import os
 import unittest
 from decimal import Decimal
+from email.message import EmailMessage
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -14,7 +17,7 @@ from browser_loader import product_redirect_message, resolve_product_address
 from composition_analysis import analyze_components
 from product_rating import CustomerRating
 from main import HouseholdGoodsWindow
-from price_loader import PriceLoader
+from price_loader import PriceLoader, read_saved_product
 from store_page import (
     BrowserPageRequired, ProductPage, ProductUnavailable, StorePageUnavailable, find_package,
     is_store_card, parse_browser_product, parse_product_page,
@@ -27,6 +30,35 @@ ALI_NAME = "Набор губок-щеток для мытья посуды 6 ш
 
 
 class CardParsingTests(unittest.TestCase):
+    def test_market_saved_page_reads_composition_from_product_specs(self):
+        address = "https://market.yandex.ru/card/gel/4850591942"
+        schema = {
+            "@type": "Product", "name": "Гель 900 мл",
+            "offers": {"@type": "Offer", "price": "242", "priceCurrency": "RUB"},
+        }
+        canonical = f'<link rel="canonical" href="{address}">'
+        html = (
+            f'<script type="application/ld+json">{json.dumps(schema)}</script>'
+            '<script data-apiary="marker">window.portal.push(["@card/DescriptionBlockV2",'
+            '{"specs":[{"name":"Состав","value":"Вода, \\u003C5% неионогенные ПАВ"}]}]);</script>'
+            '<script>var recommendation = {"name":"Состав","value":"Другое средство"};</script>'
+        )
+        page = parse_product_page((canonical + html).encode())
+        self.assertEqual((page.price, page.package, page.composition),
+                         (Decimal(242), (Decimal(900), "мл"), "Вода, <5% неионогенные ПАВ"))
+        components, _ = analyze_components(page.composition)
+        self.assertEqual((components[1].name, components[1].concentration), ("неионогенные ПАВ", "<5%"))
+        message = EmailMessage()
+        message.make_related()
+        body = EmailMessage()
+        body.set_content(html, subtype="html")
+        body["Content-Location"] = address
+        message.attach(body)
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "market.mhtml"
+            path.write_bytes(message.as_bytes())
+            self.assertEqual(read_saved_product(path), page)
+
     def test_product_header_ratings_keep_scores_and_count_types(self):
         name = "Гель для посуды 900 мл"
         cases = [
@@ -306,6 +338,10 @@ class ImportFlowTests(unittest.TestCase):
         self.assertEqual(window.compositionInput.toPlainText(), ingredients)
         window.analyzeCompositionButton.click()
         self.assertEqual(window.componentCount.text(), "Уникальных компонентов — 3\nПовторы — Вода")
+        marks = [window.compositionTable.item(row, 3) for row in range(3)]
+        self.assertEqual([mark.text().splitlines()[0] for mark in marks],
+                         ["Основа состава", "Требует внимания", "Функциональная добавка"])
+        self.assertEqual(len({mark.background().color().name() for mark in marks}), 3)
 
         other = ProductPage(Decimal(99), "", "Другой гель 900 мл", (Decimal(900), "мл"))
         window.apply_loaded_product("Другой магазин", other)

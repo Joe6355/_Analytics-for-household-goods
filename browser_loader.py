@@ -8,6 +8,7 @@ from store_page import ALIEXPRESS_HOSTS, StorePageUnavailable, parse_browser_pro
 
 
 BROWSER_ADDED_QUERY = {"market.yandex.ru": "do-waremd5", "ozon.ru": "sh"}
+CHROMIUM_WINDOW_CLASSES = {"Chrome_WidgetWin_1", "Chrome_WidgetWin_0", "Chrome_Yandex_WidgetWin_1", "Chrome_Yandex_WidgetWin_0"}
 
 
 def resolve_product_address(expected, actual):
@@ -78,6 +79,7 @@ class BrowserCardReader(QThread):
         super().__init__(parent)
         self.address = address
         self.product = None
+        self.store_unavailable = False
         self.error = "Карточка ещё не доступна в браузере. Дождитесь её загрузки и повторите добавление."
 
     def run(self):
@@ -95,18 +97,16 @@ class BrowserCardReader(QThread):
         deadline = monotonic() + 40
         opened = False
         card_error = ""
-        self.error = "Откройте карточку в Google Chrome или Microsoft Edge и повторите добавление."
+        self.error = "Откройте карточку в Яндекс Браузере, Chrome или Edge и повторите добавление."
         with auto.UIAutomationInitializerInThread():
-            self.progress.emit("Жду карточку товара в Chrome или Edge…")
+            self.progress.emit("Жду карточку товара в браузере…")
             while not self.isInterruptionRequested() and monotonic() < deadline:
                 try:
                     windows = auto.GetRootControl().GetChildren()
                     for window in windows:
                         if self.isInterruptionRequested():
                             return
-                        if window.ClassName != "Chrome_WidgetWin_1" or not window.Name.endswith(
-                            (" - Google Chrome", " - Microsoft Edge")
-                        ):
+                        if window.ClassName not in CHROMIUM_WINDOW_CLASSES:
                             continue
                         self.error = "Браузер ещё не предоставил страницу товара. Дождитесь её загрузки."
                         document = window.DocumentControl(searchDepth=12, AutomationId="RootWebArea")
@@ -135,6 +135,7 @@ class BrowserCardReader(QThread):
                             )
                         except StorePageUnavailable as error:
                             self.error = str(error)
+                            self.store_unavailable = True
                             return
                         except ValueError as error:
                             card_error = str(error)

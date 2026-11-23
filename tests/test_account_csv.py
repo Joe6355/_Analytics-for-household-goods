@@ -3,11 +3,13 @@ import os
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from time import monotonic
 from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication
 
 from main import HouseholdGoodsWindow
@@ -91,6 +93,30 @@ class AccountCSVTests(unittest.TestCase):
         self.account.show_session()
         self.assertIsNone(self.account.csv_rows)
         self.assertEqual(self.window.historyTable.rowCount(), 0)
+
+    def test_local_registration_and_history_work_without_a_server(self):
+        def wait_for(check):
+            deadline = monotonic() + 5
+            while not check() and monotonic() < deadline:
+                QTest.qWait(20)
+            self.assertTrue(check())
+
+        with patch.dict(os.environ, {"HOUSEHOLD_API_URL": "http://127.0.0.1:1"}):
+            self.window.emailInput.setText("test-local@example.test")
+            self.window.passwordInput.setText("Пароль для локальной проверки")
+            self.window.registerButton.click()
+            wait_for(lambda: self.account.token is not None)
+            self.assertTrue((self.path / "accounts.sqlite3").exists())
+            self.account.record("Прогноз", "Гель", "180 мл в месяц")
+            self.csv.account_button.click()
+            wait_for(lambda: self.window.historyHint.text() == "История обновлена. Записей — 1.")
+            self.assertIn("180 мл в месяц", self.window.historyDetails.toPlainText())
+            self.window.signInButton.click()
+            wait_for(self.window.signInButton.isEnabled)
+            self.window.passwordInput.setText("Пароль для локальной проверки")
+            self.window.signInButton.click()
+            wait_for(lambda: self.window.historyTable.rowCount() == 1)
+            self.assertEqual(self.window.historyTable.item(0, 1).text(), "Гель")
 
     def test_history_shows_full_details_and_reopens_original_inputs(self):
         self.account.token = "test-token"

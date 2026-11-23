@@ -12,8 +12,8 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>860</width>
-    <height>540</height>
+    <width>690</width>
+    <height>430</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -241,13 +241,13 @@ QHeaderView::section {
            <property name="minimumSize">
             <size>
              <width>0</width>
-             <height>194</height>
+             <height>200</height>
             </size>
            </property>
            <property name="maximumSize">
             <size>
              <width>16777215</width>
-             <height>194</height>
+             <height>200</height>
             </size>
            </property>
            <property name="accessibleName">
@@ -386,2142 +386,948 @@ QHeaderView::section {
             <number>0</number>
            </property>
            <widget class="QWidget" name="pricesPage">
-            <layout class="QVBoxLayout" name="pricesPageLayout">
-             <property name="spacing">
-              <number>13</number>
-             </property>
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
-              <number>0</number>
-             </property>
+            <layout class="QVBoxLayout" name="pricesPageContainer">
+             <property name="spacing"><number>0</number></property>
+             <property name="leftMargin"><number>0</number></property>
+             <property name="topMargin"><number>0</number></property>
+             <property name="rightMargin"><number>0</number></property>
+             <property name="bottomMargin"><number>0</number></property>
              <item>
-              <layout class="QHBoxLayout" name="pricesHeading" stretch="1,0">
-               <item>
-                <widget class="QLabel" name="pricesTitle">
-                 <property name="text">
-                  <string>Сравнение цен</string>
+              <widget class="QScrollArea" name="pricesPageScroll">
+               <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+               <property name="widgetResizable"><bool>true</bool></property>
+               <widget class="QWidget" name="pricesPageContent">
+                <layout class="QVBoxLayout" name="pricesPageLayout">
+                 <property name="spacing">
+                  <number>13</number>
                  </property>
-                 <property name="role" stdset="0">
-                  <string>pageTitle</string>
+                 <property name="leftMargin">
+                  <number>0</number>
                  </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QLabel" name="pricesProduct">
-                 <property name="text">
-                  <string>Гель для посуды</string>
+                 <property name="topMargin">
+                  <number>0</number>
                  </property>
-                 <property name="role" stdset="0">
-                  <string>muted</string>
+                 <property name="rightMargin">
+                  <number>0</number>
                  </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <widget class="QFrame" name="pricesRule">
-               <property name="frameShape">
-                <enum>QFrame::NoFrame</enum>
-               </property>
-               <property name="role" stdset="0">
-                <string>rule</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="comparisonControls" stretch="0,1,0,0">
-               <item>
-                <widget class="QLabel" name="comparisonLabel">
-                 <property name="text">
-                  <string>Список сравнения</string>
-                 </property>
-                 <property name="buddy">
-                  <cstring>comparisonSelector</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="comparisonSelector">
-                 <property name="sizeAdjustPolicy">
-                  <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
-                 </property>
-                 <property name="minimumContentsLength">
-                  <number>15</number>
+                 <property name="bottomMargin">
+                  <number>0</number>
                  </property>
                  <item>
-                  <property name="text">
-                   <string>Основное сравнение</string>
-                  </property>
-                 </item>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="newComparisonButton">
-                 <property name="text">
-                  <string>Новый список</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="manageComparisonButton">
-                 <property name="text">
-                  <string>Действия</string>
-                 </property>
-                 <property name="accessibleName">
-                  <string>Действия со списком сравнения</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="productLinkFields" stretch="1,0,0">
-               <item>
-                <widget class="QLineEdit" name="productLinkInput">
-                 <property name="accessibleName">
-                  <string>Ссылка на карточку товара</string>
-                 </property>
-                 <property name="placeholderText">
-                  <string>Ссылка на карточку товара</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="loadPriceButton">
-                 <property name="text">
-                  <string>Добавить по ссылке</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="loadPriceFileButton">
-                 <property name="toolTip">
-                  <string>Добавить предложение из сохранённой карточки товара</string>
-                 </property>
-                 <property name="text">
-                  <string>Из HTML</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QGridLayout" name="offerFields" columnstretch="4,2,0,2,0">
-               <property name="horizontalSpacing">
-                <number>8</number>
-               </property>
-               <item row="0" column="0">
-                <widget class="QLabel" name="storeLabel">
-                 <property name="text">
-                  <string>Магазин</string>
-                 </property>
-                 <property name="buddy">
-                  <cstring>storeInput</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="1" colspan="2">
-                <widget class="QLabel" name="offerPackageLabel">
-                 <property name="text">
-                  <string>В упаковке</string>
-                 </property>
-                 <property name="buddy">
-                  <cstring>offerPackageInput</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="3">
-                <widget class="QLabel" name="offerPriceLabel">
-                 <property name="text">
-                  <string>Цена, ₽</string>
-                 </property>
-                 <property name="buddy">
-                  <cstring>offerPriceInput</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="0">
-                <widget class="QLineEdit" name="storeInput"/>
-               </item>
-               <item row="1" column="1">
-                <widget class="QLineEdit" name="offerPackageInput"/>
-               </item>
-               <item row="1" column="2">
-                <widget class="QComboBox" name="offerUnit">
-                 <property name="accessibleName">
-                  <string>Единица сравнения</string>
-                 </property>
-                 <item>
-                  <property name="text">
-                   <string>мл</string>
-                  </property>
+                  <layout class="QHBoxLayout" name="pricesHeading" stretch="1,0">
+                   <item>
+                    <widget class="QLabel" name="pricesTitle">
+                     <property name="text">
+                      <string>Сравнение цен</string>
+                     </property>
+                     <property name="role" stdset="0">
+                      <string>pageTitle</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="pricesProduct">
+                     <property name="text">
+                      <string>Гель для посуды</string>
+                     </property>
+                     <property name="role" stdset="0">
+                      <string>muted</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
                  </item>
                  <item>
-                  <property name="text">
-                   <string>г</string>
-                  </property>
+                  <widget class="QFrame" name="pricesRule">
+                   <property name="frameShape">
+                    <enum>QFrame::NoFrame</enum>
+                   </property>
+                   <property name="role" stdset="0">
+                    <string>rule</string>
+                   </property>
+                  </widget>
                  </item>
                  <item>
-                  <property name="text">
-                   <string>шт.</string>
-                  </property>
+                  <widget class="QLabel" name="comparisonLabel">
+                   <property name="text">
+                    <string>Список сравнения</string>
+                   </property>
+                   <property name="buddy">
+                    <cstring>comparisonSelector</cstring>
+                   </property>
+                  </widget>
                  </item>
-                </widget>
-               </item>
-               <item row="1" column="3">
-                <widget class="QLineEdit" name="offerPriceInput"/>
-               </item>
-               <item row="1" column="4">
-                <widget class="QPushButton" name="addOfferButton">
-                 <property name="text">
-                  <string>Добавить</string>
-                 </property>
-                 <property name="role" stdset="0">
-                  <string>primary</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <widget class="QTableWidget" name="offersTable">
-               <property name="accessibleName">
-                <string>Сравнение предложений</string>
-               </property>
-               <property name="editTriggers">
-                <set>QAbstractItemView::NoEditTriggers</set>
-               </property>
-               <property name="alternatingRowColors">
-                <bool>true</bool>
-               </property>
-               <property name="selectionMode">
-                <enum>QAbstractItemView::SingleSelection</enum>
-               </property>
-               <property name="selectionBehavior">
-                <enum>QAbstractItemView::SelectRows</enum>
-               </property>
-               <property name="wordWrap">
-                <bool>true</bool>
-               </property>
-               <property name="textElideMode">
-                <enum>Qt::ElideNone</enum>
-               </property>
-               <attribute name="horizontalHeaderDefaultSectionSize">
-                <number>104</number>
-               </attribute>
-               <attribute name="verticalHeaderVisible">
-                <bool>false</bool>
-               </attribute>
-               <attribute name="verticalHeaderDefaultSectionSize">
-                <number>34</number>
-               </attribute>
-               <row/>
-               <row/>
-               <row/>
-               <column>
-                <property name="text">
-                 <string>Товар</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignLeading|AlignVCenter</set>
-                </property>
-               </column>
-               <column>
-                <property name="text">
-                 <string>Магазин</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignLeading|AlignVCenter</set>
-                </property>
-               </column>
-               <column>
-                <property name="text">
-                 <string>Упаковка</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </column>
-               <column>
-                <property name="text">
-                 <string>Цена, ₽</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </column>
-               <column>
-                <property name="text">
-                 <string>За 100 мл, ₽</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </column>
-               <column>
-                <property name="text">
-                 <string>Дата и условия</string>
-                </property>
-               </column>
-               <item row="0" column="0">
-                <property name="text">
-                 <string>Гель для посуды</string>
-                </property>
-               </item>
-               <item row="0" column="1">
-                <property name="text">
-                 <string>Хозмаркет</string>
-                </property>
-               </item>
-               <item row="0" column="2">
-                <property name="text">
-                 <string>750 мл</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="0" column="3">
-                <property name="text">
-                 <string>459,00</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="0" column="4">
-                <property name="text">
-                 <string>61,20</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="1" column="0">
-                <property name="text">
-                 <string>Гель для посуды</string>
-                </property>
-               </item>
-               <item row="1" column="1">
-                <property name="text">
-                 <string>Супермаркет</string>
-                </property>
-               </item>
-               <item row="1" column="2">
-                <property name="text">
-                 <string>500 мл</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="1" column="3">
-                <property name="text">
-                 <string>319,00</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="1" column="4">
-                <property name="text">
-                 <string>63,80</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="2" column="0">
-                <property name="text">
-                 <string>Гель для посуды</string>
-                </property>
-               </item>
-               <item row="2" column="1">
-                <property name="text">
-                 <string>У дома</string>
-                </property>
-               </item>
-               <item row="2" column="2">
-                <property name="text">
-                 <string>500 мл</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="2" column="3">
-                <property name="text">
-                 <string>349,00</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="2" column="4">
-                <property name="text">
-                 <string>69,80</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="csvActions">
-               <item>
-                <widget class="QPushButton" name="loadCsvButton">
-                 <property name="text"><string>Загрузить CSV</string></property>
-                 <property name="toolTip"><string>Заменить предложения данными из CSV-файла</string></property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="saveCsvButton">
-                 <property name="text"><string>Сохранить CSV</string></property>
-                </widget>
-               </item>
-               <item>
-                <spacer name="csvActionsSpacer">
-                 <property name="orientation"><enum>Qt::Horizontal</enum></property>
-                 <property name="sizeType"><enum>QSizePolicy::Expanding</enum></property>
-                 <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
-                </spacer>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="offerActions" stretch="1,0,0,0">
-               <item>
-                <widget class="QLabel" name="bestPriceLabel">
-                 <property name="styleSheet">
-                  <string notr="true">background-color: white;
-    color: #243139;
-    border-radius: 6px;
-    padding: 4px 8px;</string>
-                 </property>
-                 <property name="text">
-                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Лучшая цена — 61,20 ₽ за 100 мл&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                 </property>
-                 <property name="wordWrap">
-                  <bool>true</bool>
-                 </property>
-                 <property name="role" stdset="0">
-                  <string>muted</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="useOfferButton">
-                 <property name="enabled">
-                  <bool>false</bool>
-                 </property>
-                 <property name="text">
-                  <string>Взять в расчёт</string>
-                 </property>
-                 <property name="toolTip">
-                  <string>Перенести выбранное предложение в «Расход». Если меняется товар или единица измерения, замеры нужно ввести заново.</string>
-                 </property>
-                 <property name="role" stdset="0">
-                  <string>primary</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="refreshOfferButton">
-                 <property name="enabled">
-                  <bool>false</bool>
-                 </property>
-                 <property name="text">
-                  <string>Обновить цену</string>
-                 </property>
-                 <property name="toolTip">
-                  <string>Загрузить новую цену по ссылке выбранной карточки</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="removeOfferButton">
-                 <property name="enabled">
-                  <bool>false</bool>
-                 </property>
-                 <property name="text">
-                  <string>Удалить выбранное</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <widget class="QLabel" name="offerDifferenceLabel">
-               <property name="textFormat">
-                <enum>Qt::PlainText</enum>
-               </property>
-               <property name="text">
-                <string>Разница с лучшей ценой за 500 мл — 13,00 ₽.</string>
-               </property>
-               <property name="wordWrap">
-                <bool>true</bool>
-               </property>
-               <property name="role" stdset="0">
-                <string>muted</string>
-               </property>
+                 <item>
+                  <layout class="QHBoxLayout" name="comparisonControls" stretch="1,0,0">
+                   <item>
+                    <widget class="QComboBox" name="comparisonSelector">
+                     <property name="sizeAdjustPolicy">
+                      <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
+                     </property>
+                     <property name="minimumContentsLength">
+                      <number>12</number>
+                     </property>
+                     <item>
+                      <property name="text">
+                       <string>Основное сравнение</string>
+                      </property>
+                     </item>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="newComparisonButton">
+                     <property name="text">
+                      <string>Новый список</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="manageComparisonButton">
+                     <property name="text">
+                      <string>Действия</string>
+                     </property>
+                     <property name="accessibleName">
+                      <string>Действия со списком сравнения</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <layout class="QHBoxLayout" name="productLinkFields" stretch="1,0,0">
+                   <item>
+                    <widget class="QLineEdit" name="productLinkInput">
+                     <property name="accessibleName">
+                      <string>Ссылка на карточку товара</string>
+                     </property>
+                     <property name="placeholderText">
+                      <string>Ссылка на карточку товара</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="loadPriceButton">
+                     <property name="text">
+                      <string>Добавить по ссылке</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="loadPriceFileButton">
+                     <property name="toolTip">
+                      <string>Добавить предложение из сохранённой карточки товара</string>
+                     </property>
+                     <property name="text">
+                      <string>Из HTML</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <layout class="QGridLayout" name="offerFields" columnstretch="4,2,0,2,0">
+                   <property name="horizontalSpacing">
+                    <number>8</number>
+                   </property>
+                   <item row="0" column="0">
+                    <widget class="QLabel" name="storeLabel">
+                     <property name="text">
+                      <string>Магазин</string>
+                     </property>
+                     <property name="buddy">
+                      <cstring>storeInput</cstring>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="0" column="1" colspan="2">
+                    <widget class="QLabel" name="offerPackageLabel">
+                     <property name="text">
+                      <string>В упаковке</string>
+                     </property>
+                     <property name="buddy">
+                      <cstring>offerPackageInput</cstring>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="0" column="3">
+                    <widget class="QLabel" name="offerPriceLabel">
+                     <property name="text">
+                      <string>Цена, ₽</string>
+                     </property>
+                     <property name="buddy">
+                      <cstring>offerPriceInput</cstring>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="1" column="0">
+                    <widget class="QLineEdit" name="storeInput"/>
+                   </item>
+                   <item row="1" column="1">
+                    <widget class="QLineEdit" name="offerPackageInput"/>
+                   </item>
+                   <item row="1" column="2">
+                    <widget class="QComboBox" name="offerUnit">
+                     <property name="accessibleName">
+                      <string>Единица сравнения</string>
+                     </property>
+                     <item>
+                      <property name="text">
+                       <string>мл</string>
+                      </property>
+                     </item>
+                     <item>
+                      <property name="text">
+                       <string>г</string>
+                      </property>
+                     </item>
+                     <item>
+                      <property name="text">
+                       <string>шт.</string>
+                      </property>
+                     </item>
+                    </widget>
+                   </item>
+                   <item row="1" column="3">
+                    <widget class="QLineEdit" name="offerPriceInput"/>
+                   </item>
+                   <item row="1" column="4">
+                    <widget class="QPushButton" name="addOfferButton">
+                     <property name="text">
+                      <string>Добавить</string>
+                     </property>
+                     <property name="role" stdset="0">
+                      <string>primary</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <widget class="QTableWidget" name="offersTable">
+                   <property name="accessibleName">
+                    <string>Сравнение предложений</string>
+                   </property>
+                   <property name="editTriggers">
+                    <set>QAbstractItemView::NoEditTriggers</set>
+                   </property>
+                   <property name="alternatingRowColors">
+                    <bool>true</bool>
+                   </property>
+                   <property name="selectionMode">
+                    <enum>QAbstractItemView::SingleSelection</enum>
+                   </property>
+                   <property name="selectionBehavior">
+                    <enum>QAbstractItemView::SelectRows</enum>
+                   </property>
+                   <property name="wordWrap">
+                    <bool>true</bool>
+                   </property>
+                   <property name="textElideMode">
+                    <enum>Qt::ElideNone</enum>
+                   </property>
+                   <attribute name="horizontalHeaderDefaultSectionSize">
+                    <number>104</number>
+                   </attribute>
+                   <attribute name="verticalHeaderVisible">
+                    <bool>false</bool>
+                   </attribute>
+                   <attribute name="verticalHeaderDefaultSectionSize">
+                    <number>34</number>
+                   </attribute>
+                   <row/>
+                   <row/>
+                   <row/>
+                   <column>
+                    <property name="text">
+                     <string>Товар</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignLeading|AlignVCenter</set>
+                    </property>
+                   </column>
+                   <column>
+                    <property name="text">
+                     <string>Магазин</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignLeading|AlignVCenter</set>
+                    </property>
+                   </column>
+                   <column>
+                    <property name="text">
+                     <string>Упаковка</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </column>
+                   <column>
+                    <property name="text">
+                     <string>Цена, ₽</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </column>
+                   <column>
+                    <property name="text">
+                     <string>За 100 мл, ₽</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </column>
+                   <column>
+                    <property name="text">
+                     <string>Дата и условия</string>
+                    </property>
+                   </column>
+                   <item row="0" column="0">
+                    <property name="text">
+                     <string>Гель для посуды</string>
+                    </property>
+                   </item>
+                   <item row="0" column="1">
+                    <property name="text">
+                     <string>Хозмаркет</string>
+                    </property>
+                   </item>
+                   <item row="0" column="2">
+                    <property name="text">
+                     <string>750 мл</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="0" column="3">
+                    <property name="text">
+                     <string>459,00</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="0" column="4">
+                    <property name="text">
+                     <string>61,20</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="1" column="0">
+                    <property name="text">
+                     <string>Гель для посуды</string>
+                    </property>
+                   </item>
+                   <item row="1" column="1">
+                    <property name="text">
+                     <string>Супермаркет</string>
+                    </property>
+                   </item>
+                   <item row="1" column="2">
+                    <property name="text">
+                     <string>500 мл</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="1" column="3">
+                    <property name="text">
+                     <string>319,00</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="1" column="4">
+                    <property name="text">
+                     <string>63,80</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="2" column="0">
+                    <property name="text">
+                     <string>Гель для посуды</string>
+                    </property>
+                   </item>
+                   <item row="2" column="1">
+                    <property name="text">
+                     <string>У дома</string>
+                    </property>
+                   </item>
+                   <item row="2" column="2">
+                    <property name="text">
+                     <string>500 мл</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="2" column="3">
+                    <property name="text">
+                     <string>349,00</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="2" column="4">
+                    <property name="text">
+                     <string>69,80</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item>
+                  <layout class="QHBoxLayout" name="csvActions">
+                   <item>
+                    <widget class="QPushButton" name="loadCsvButton">
+                     <property name="text"><string>Загрузить CSV</string></property>
+                     <property name="toolTip"><string>Заменить предложения данными из CSV-файла</string></property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="saveCsvButton">
+                     <property name="text"><string>Сохранить CSV</string></property>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="csvActionsSpacer">
+                     <property name="orientation"><enum>Qt::Horizontal</enum></property>
+                     <property name="sizeType"><enum>QSizePolicy::Expanding</enum></property>
+                     <property name="sizeHint" stdset="0"><size><width>0</width><height>0</height></size></property>
+                    </spacer>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                   <widget class="QLabel" name="bestPriceLabel">
+                    <property name="styleSheet">
+                     <string notr="true">background-color: white;
+       color: #243139;
+       border-radius: 6px;
+       padding: 4px 8px;</string>
+                    </property>
+                    <property name="text">
+                     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Лучшая цена — 61,20 ₽ за 100 мл&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="role" stdset="0">
+                     <string>muted</string>
+                    </property>
+                   </widget>
+                 </item>
+                 <item>
+                  <layout class="QHBoxLayout" name="offerActions">
+                   <item>
+                    <widget class="QPushButton" name="useOfferButton">
+                     <property name="enabled">
+                      <bool>false</bool>
+                     </property>
+                     <property name="text">
+                      <string>Взять в расчёт</string>
+                     </property>
+                     <property name="toolTip">
+                      <string>Перенести выбранное предложение в «Расход». Если меняется товар или единица измерения, замеры нужно ввести заново.</string>
+                     </property>
+                     <property name="role" stdset="0">
+                      <string>primary</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="refreshOfferButton">
+                     <property name="enabled">
+                      <bool>false</bool>
+                     </property>
+                     <property name="text">
+                      <string>Обновить цену</string>
+                     </property>
+                     <property name="toolTip">
+                      <string>Загрузить новую цену по ссылке выбранной карточки</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="removeOfferButton">
+                     <property name="enabled">
+                      <bool>false</bool>
+                     </property>
+                     <property name="text">
+                      <string>Удалить выбранное</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="offerDifferenceLabel">
+                   <property name="textFormat">
+                    <enum>Qt::PlainText</enum>
+                   </property>
+                   <property name="text">
+                    <string>Разница с лучшей ценой за 500 мл — 13,00 ₽.</string>
+                   </property>
+                   <property name="wordWrap">
+                    <bool>true</bool>
+                   </property>
+                   <property name="role" stdset="0">
+                    <string>muted</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
               </widget>
              </item>
             </layout>
            </widget>
            <widget class="QWidget" name="usagePage">
-            <layout class="QVBoxLayout" name="usagePageLayout" stretch="0,0,0,0,1">
-             <property name="spacing">
-              <number>18</number>
-             </property>
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
-              <number>0</number>
-             </property>
+            <layout class="QVBoxLayout" name="usagePageContainer">
+             <property name="spacing"><number>0</number></property>
+             <property name="leftMargin"><number>0</number></property>
+             <property name="topMargin"><number>0</number></property>
+             <property name="rightMargin"><number>0</number></property>
+             <property name="bottomMargin"><number>0</number></property>
              <item>
-              <widget class="QLabel" name="usageTitle">
-               <property name="text">
-                <string>Расход товара</string>
-               </property>
-               <property name="role" stdset="0">
-                <string>pageTitle</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QFrame" name="usageRule">
-               <property name="frameShape">
-                <enum>QFrame::NoFrame</enum>
-               </property>
-               <property name="role" stdset="0">
-                <string>rule</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="usageOfferSelection" stretch="0,1">
-               <item>
-                <widget class="QLabel" name="usageOfferLabel">
-                 <property name="text">
-                  <string>Предложение из «Цен»</string>
-                 </property>
-                 <property name="buddy">
-                  <cstring>usageOfferSelector</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="usageOfferSelector">
-                 <property name="sizeAdjustPolicy">
-                  <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
-                 </property>
-                 <property name="minimumContentsLength">
-                  <number>22</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="usageColumns" stretch="5,4">
-               <property name="spacing">
-                <number>24</number>
-               </property>
-               <item>
-                <layout class="QVBoxLayout" name="usageInputs" stretch="0,0,0,1,0">
+              <widget class="QScrollArea" name="usagePageScroll">
+               <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+               <property name="widgetResizable"><bool>true</bool></property>
+               <widget class="QWidget" name="usagePageContent">
+                <layout class="QVBoxLayout" name="usagePageLayout" stretch="0,0,0,0,1">
                  <property name="spacing">
-                  <number>10</number>
+                  <number>18</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
                  </property>
                  <item>
-                  <widget class="QLabel" name="usageInputsTitle">
+                  <widget class="QLabel" name="usageTitle">
                    <property name="text">
-                    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;Данные товара&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                    <string>Расход товара</string>
                    </property>
                    <property name="role" stdset="0">
-                    <string>sectionTitle</string>
+                    <string>pageTitle</string>
                    </property>
                   </widget>
                  </item>
                  <item>
-                  <layout class="QFormLayout" name="packageFields">
-                   <property name="fieldGrowthPolicy">
-                    <enum>QFormLayout::FieldsStayAtSizeHint</enum>
+                  <widget class="QFrame" name="usageRule">
+                   <property name="frameShape">
+                    <enum>QFrame::NoFrame</enum>
                    </property>
-                   <property name="horizontalSpacing">
-                    <number>12</number>
+                   <property name="role" stdset="0">
+                    <string>rule</string>
                    </property>
-                   <property name="verticalSpacing">
-                    <number>8</number>
-                   </property>
-                   <item row="0" column="0">
-                    <widget class="QLabel" name="productLabel">
+                  </widget>
+                 </item>
+                 <item>
+                  <layout class="QHBoxLayout" name="usageOfferSelection" stretch="0,1">
+                   <item>
+                    <widget class="QLabel" name="usageOfferLabel">
                      <property name="text">
-                      <string>Название</string>
+                      <string>Предложение из «Цен»</string>
                      </property>
                      <property name="buddy">
-                      <cstring>productInput</cstring>
+                      <cstring>usageOfferSelector</cstring>
                      </property>
                     </widget>
                    </item>
-                   <item row="0" column="1">
-                    <widget class="QLineEdit" name="productInput">
-                     <property name="minimumSize">
-                      <size>
-                       <width>240</width>
-                       <height>0</height>
-                      </size>
+                   <item>
+                    <widget class="QComboBox" name="usageOfferSelector">
+                     <property name="sizeAdjustPolicy">
+                      <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
                      </property>
-                     <property name="text">
-                      <string>Гель для посуды</string>
+                     <property name="minimumContentsLength">
+                      <number>22</number>
                      </property>
                     </widget>
                    </item>
-                   <item row="1" column="0">
-                    <widget class="QLabel" name="packageLabel">
-                     <property name="text">
-                      <string>В упаковке</string>
+                  </layout>
+                 </item>
+                 <item>
+                  <layout class="QHBoxLayout" name="usageColumns" stretch="5,4">
+                   <property name="spacing">
+                    <number>24</number>
+                   </property>
+                   <item>
+                    <layout class="QVBoxLayout" name="usageInputs" stretch="0,0,0,1,0">
+                     <property name="spacing">
+                      <number>10</number>
                      </property>
-                     <property name="buddy">
-                      <cstring>packageInput</cstring>
-                     </property>
-                    </widget>
-                   </item>
-                   <item row="1" column="1">
-                    <layout class="QHBoxLayout" name="quantityFields" stretch="1,0">
                      <item>
-                      <widget class="QLineEdit" name="packageInput">
+                      <widget class="QLabel" name="usageInputsTitle">
                        <property name="text">
-                        <string>500</string>
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;Данные товара&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                       </property>
+                       <property name="role" stdset="0">
+                        <string>sectionTitle</string>
                        </property>
                       </widget>
                      </item>
                      <item>
-                      <widget class="QComboBox" name="packageUnit">
-                       <property name="accessibleName">
-                        <string>Единица измерения упаковки</string>
+                      <layout class="QFormLayout" name="packageFields">
+                       <property name="fieldGrowthPolicy">
+                        <enum>QFormLayout::FieldsStayAtSizeHint</enum>
                        </property>
-                       <item>
-                        <property name="text">
-                         <string>мл</string>
-                        </property>
+                       <property name="horizontalSpacing">
+                        <number>12</number>
+                       </property>
+                       <property name="verticalSpacing">
+                        <number>8</number>
+                       </property>
+                       <item row="0" column="0">
+                        <widget class="QLabel" name="productLabel">
+                         <property name="text">
+                          <string>Название</string>
+                         </property>
+                         <property name="buddy">
+                          <cstring>productInput</cstring>
+                         </property>
+                        </widget>
                        </item>
-                       <item>
-                        <property name="text">
-                         <string>г</string>
-                        </property>
+                       <item row="0" column="1">
+                        <widget class="QLineEdit" name="productInput">
+                         <property name="minimumSize">
+                          <size>
+                           <width>240</width>
+                           <height>0</height>
+                          </size>
+                         </property>
+                         <property name="text">
+                          <string>Гель для посуды</string>
+                         </property>
+                        </widget>
                        </item>
-                       <item>
-                        <property name="text">
-                         <string>шт.</string>
-                        </property>
+                       <item row="1" column="0">
+                        <widget class="QLabel" name="packageLabel">
+                         <property name="text">
+                          <string>В упаковке</string>
+                         </property>
+                         <property name="buddy">
+                          <cstring>packageInput</cstring>
+                         </property>
+                        </widget>
                        </item>
+                       <item row="1" column="1">
+                        <layout class="QHBoxLayout" name="quantityFields" stretch="1,0">
+                         <item>
+                          <widget class="QLineEdit" name="packageInput">
+                           <property name="text">
+                            <string>500</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QComboBox" name="packageUnit">
+                           <property name="accessibleName">
+                            <string>Единица измерения упаковки</string>
+                           </property>
+                           <item>
+                            <property name="text">
+                             <string>мл</string>
+                            </property>
+                           </item>
+                           <item>
+                            <property name="text">
+                             <string>г</string>
+                            </property>
+                           </item>
+                           <item>
+                            <property name="text">
+                             <string>шт.</string>
+                            </property>
+                           </item>
+                          </widget>
+                         </item>
+                        </layout>
+                       </item>
+                       <item row="2" column="0">
+                        <widget class="QLabel" name="packagePriceLabel">
+                         <property name="text">
+                          <string>Цена, ₽</string>
+                         </property>
+                         <property name="buddy">
+                          <cstring>packagePriceInput</cstring>
+                         </property>
+                        </widget>
+                       </item>
+                       <item row="2" column="1">
+                        <widget class="QLineEdit" name="packagePriceInput">
+                         <property name="text">
+                          <string>349,00</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </item>
+                     <item>
+                      <widget class="QLabel" name="usagePriceNote">
+                       <property name="text">
+                        <string/>
+                       </property>
+                       <property name="textFormat">
+                        <enum>Qt::PlainText</enum>
+                       </property>
+                       <property name="wordWrap">
+                        <bool>true</bool>
+                       </property>
+                       <property name="role" stdset="0">
+                        <string>muted</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QLabel" name="measurementsLabel">
+                       <property name="text">
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Замеры за одно применение, мл&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                       </property>
+                       <property name="wordWrap">
+                        <bool>true</bool>
+                       </property>
+                       <property name="buddy">
+                        <cstring>measurementsInput</cstring>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPlainTextEdit" name="measurementsInput">
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>90</height>
+                        </size>
+                       </property>
+                       <property name="maximumSize">
+                        <size>
+                         <width>16777215</width>
+                         <height>176</height>
+                        </size>
+                       </property>
+                       <property name="tabChangesFocus">
+                        <bool>true</bool>
+                       </property>
+                       <property name="plainText">
+                        <string>8,5
+    9
+    9,5</string>
+                       </property>
+                       <property name="placeholderText">
+                        <string>По одному замеру на строку</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPushButton" name="calculateUsageButton">
+                       <property name="text">
+                        <string>Рассчитать расход</string>
+                       </property>
+                       <property name="role" stdset="0">
+                        <string>primary</string>
+                       </property>
                       </widget>
                      </item>
                     </layout>
                    </item>
-                   <item row="2" column="0">
-                    <widget class="QLabel" name="packagePriceLabel">
-                     <property name="text">
-                      <string>Цена, ₽</string>
-                     </property>
-                     <property name="buddy">
-                      <cstring>packagePriceInput</cstring>
-                     </property>
-                    </widget>
-                   </item>
-                   <item row="2" column="1">
-                    <widget class="QLineEdit" name="packagePriceInput">
-                     <property name="text">
-                      <string>349,00</string>
-                     </property>
-                    </widget>
-                   </item>
-                  </layout>
-                 </item>
-                 <item>
-                  <widget class="QLabel" name="usagePriceNote">
-                   <property name="text">
-                    <string/>
-                   </property>
-                   <property name="textFormat">
-                    <enum>Qt::PlainText</enum>
-                   </property>
-                   <property name="wordWrap">
-                    <bool>true</bool>
-                   </property>
-                   <property name="role" stdset="0">
-                    <string>muted</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QLabel" name="measurementsLabel">
-                   <property name="text">
-                    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Замеры за одно применение, мл&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                   </property>
-                   <property name="wordWrap">
-                    <bool>true</bool>
-                   </property>
-                   <property name="buddy">
-                    <cstring>measurementsInput</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QPlainTextEdit" name="measurementsInput">
-                   <property name="minimumSize">
-                    <size>
-                     <width>0</width>
-                     <height>90</height>
-                    </size>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>16777215</width>
-                     <height>176</height>
-                    </size>
-                   </property>
-                   <property name="tabChangesFocus">
-                    <bool>true</bool>
-                   </property>
-                   <property name="plainText">
-                    <string>8,5
-9
-9,5</string>
-                   </property>
-                   <property name="placeholderText">
-                    <string>По одному замеру на строку</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QPushButton" name="calculateUsageButton">
-                   <property name="text">
-                    <string>Рассчитать расход</string>
-                   </property>
-                   <property name="role" stdset="0">
-                    <string>primary</string>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </item>
-               <item>
-                <layout class="QVBoxLayout" name="usageResultsColumn">
-                 <item>
-                  <widget class="QFrame" name="usageResults">
-                   <property name="role" stdset="0">
-                    <string>sheet</string>
-                   </property>
-                   <layout class="QVBoxLayout" name="usageResultsLayout">
-                    <property name="spacing">
-                     <number>12</number>
-                    </property>
-                    <property name="leftMargin">
-                     <number>16</number>
-                    </property>
-                    <property name="topMargin">
-                     <number>14</number>
-                    </property>
-                    <property name="rightMargin">
-                     <number>16</number>
-                    </property>
-                    <property name="bottomMargin">
-                     <number>16</number>
-                    </property>
-                    <item>
-                     <widget class="QLabel" name="usageResultTitle">
-                      <property name="text">
-                       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:16pt;&quot;&gt;Результат расчёта&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>sectionTitle</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="usageCostLabel">
-                      <property name="text">
-                       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;Стоимость одного применения&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                      </property>
-                      <property name="wordWrap">
-                       <bool>true</bool>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="usageCostValue">
-                      <property name="text">
-                       <string>6,28 ₽</string>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>featuredFigure</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QFrame" name="usageResultsRule">
-                      <property name="frameShape">
-                       <enum>QFrame::NoFrame</enum>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>rule</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <layout class="QGridLayout" name="usageMetrics" columnstretch="1,0">
-                      <property name="horizontalSpacing">
-                       <number>8</number>
-                      </property>
-                      <property name="verticalSpacing">
-                       <number>10</number>
-                      </property>
-                      <item row="0" column="0">
-                       <widget class="QLabel" name="averageUsageLabel">
-                        <property name="text">
-                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Средний расход&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   <item>
+                    <layout class="QVBoxLayout" name="usageResultsColumn">
+                     <item>
+                      <widget class="QFrame" name="usageResults">
+                       <property name="role" stdset="0">
+                        <string>sheet</string>
+                       </property>
+                       <layout class="QVBoxLayout" name="usageResultsLayout">
+                        <property name="spacing">
+                         <number>12</number>
                         </property>
-                        <property name="wordWrap">
-                         <bool>true</bool>
+                        <property name="leftMargin">
+                         <number>16</number>
                         </property>
-                       </widget>
-                      </item>
-                      <item row="0" column="1">
-                       <widget class="QLabel" name="averageUsageValue">
-                        <property name="text">
-                         <string>9 мл</string>
+                        <property name="topMargin">
+                         <number>14</number>
                         </property>
-                        <property name="alignment">
-                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                        <property name="rightMargin">
+                         <number>16</number>
                         </property>
-                        <property name="role" stdset="0">
-                         <string>figure</string>
+                        <property name="bottomMargin">
+                         <number>16</number>
                         </property>
-                       </widget>
-                      </item>
-                      <item row="1" column="0">
-                       <widget class="QLabel" name="fullUsesLabel">
-                        <property name="text">
-                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Применений из упаковки&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                        </property>
-                        <property name="wordWrap">
-                         <bool>true</bool>
-                        </property>
-                       </widget>
-                      </item>
-                      <item row="1" column="1">
-                       <widget class="QLabel" name="fullUsesValue">
-                        <property name="text">
-                         <string>55</string>
-                        </property>
-                        <property name="alignment">
-                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                        </property>
-                        <property name="role" stdset="0">
-                         <string>figure</string>
-                        </property>
-                       </widget>
-                      </item>
-                      <item row="2" column="0">
-                       <widget class="QLabel" name="sampleCountLabel">
-                        <property name="text">
-                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Количество замеров&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                        </property>
-                        <property name="wordWrap">
-                         <bool>true</bool>
-                        </property>
-                       </widget>
-                      </item>
-                      <item row="2" column="1">
-                       <widget class="QLabel" name="sampleCountValue">
-                        <property name="text">
-                         <string>—</string>
-                        </property>
-                        <property name="textFormat">
-                         <enum>Qt::PlainText</enum>
-                        </property>
-                        <property name="alignment">
-                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                        </property>
-                        <property name="role" stdset="0">
-                         <string>figure</string>
-                        </property>
-                       </widget>
-                      </item>
-                      <item row="3" column="0">
-                       <widget class="QLabel" name="sampleRangeLabel">
-                        <property name="text">
-                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Диапазон расхода&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                        </property>
-                        <property name="wordWrap">
-                         <bool>true</bool>
-                        </property>
-                       </widget>
-                      </item>
-                      <item row="3" column="1">
-                       <widget class="QLabel" name="sampleRangeValue">
-                        <property name="text">
-                         <string>—</string>
-                        </property>
-                        <property name="textFormat">
-                         <enum>Qt::PlainText</enum>
-                        </property>
-                        <property name="alignment">
-                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                        </property>
-                        <property name="role" stdset="0">
-                         <string>figure</string>
-                        </property>
-                       </widget>
-                      </item>
-                     </layout>
-                    </item>
-                   </layout>
-                  </widget>
-                 </item>
-                </layout>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <spacer name="usagePageBottomSpacer">
-               <property name="orientation">
-                <enum>Qt::Vertical</enum>
-               </property>
-               <property name="sizeType">
-                <enum>QSizePolicy::Expanding</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>0</width>
-                 <height>0</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </widget>
-           <widget class="QWidget" name="forecastPage">
-            <layout class="QVBoxLayout" name="forecastPageLayout" stretch="0,0,0,0,0,0,1">
-             <property name="spacing">
-              <number>13</number>
-             </property>
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
-              <number>0</number>
-             </property>
-             <item>
-              <layout class="QHBoxLayout" name="forecastHeading" stretch="1,0">
-               <item>
-                <widget class="QLabel" name="forecastTitle">
-                 <property name="text">
-                  <string>Прогноз расходов</string>
-                 </property>
-                 <property name="role" stdset="0">
-                  <string>pageTitle</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QLabel" name="forecastProduct">
-                 <property name="text">
-                  <string>Гель для посуды · 500 мл</string>
-                 </property>
-                 <property name="wordWrap">
-                  <bool>true</bool>
-                 </property>
-                 <property name="role" stdset="0">
-                  <string>muted</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <widget class="QFrame" name="forecastRule">
-               <property name="frameShape">
-                <enum>QFrame::NoFrame</enum>
-               </property>
-               <property name="role" stdset="0">
-                <string>rule</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="forecastOfferSelection" stretch="0,1">
-               <item>
-                <widget class="QLabel" name="forecastOfferLabel">
-                 <property name="text">
-                  <string>Предложение из «Цен»</string>
-                 </property>
-                 <property name="buddy">
-                  <cstring>forecastOfferSelector</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="forecastOfferSelector">
-                 <property name="sizeAdjustPolicy">
-                  <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
-                 </property>
-                 <property name="minimumContentsLength">
-                  <number>22</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="frequencyFields" stretch="0,0,0,0,1">
-               <property name="spacing">
-                <number>9</number>
-               </property>
-               <item>
-                <widget class="QLabel" name="frequencyLabel">
-                 <property name="text">
-                  <string>Применений</string>
-                 </property>
-                 <property name="buddy">
-                  <cstring>frequencyInput</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QSpinBox" name="frequencyInput">
-                 <property name="minimumSize">
-                  <size>
-                   <width>86</width>
-                   <height>27</height>
-                  </size>
-                 </property>
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>10000</number>
-                 </property>
-                 <property name="value">
-                  <number>16</number>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="frequencyPeriod">
-                 <property name="minimumSize">
-                  <size>
-                   <width>112</width>
-                   <height>27</height>
-                  </size>
-                 </property>
-                 <property name="accessibleName">
-                  <string>Период</string>
-                 </property>
-                 <item>
-                  <property name="text">
-                   <string>в месяц</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>в год</string>
-                  </property>
-                 </item>
-                </widget>
-               </item>
-               <item>
-                <widget class="QPushButton" name="calculateForecastButton">
-                 <property name="text">
-                  <string>Рассчитать</string>
-                 </property>
-                 <property name="role" stdset="0">
-                  <string>primary</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <spacer name="forecastFieldsSpacer">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeType">
-                  <enum>QSizePolicy::Expanding</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>8</width>
-                   <height>0</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="forecastSummary" stretch="1,1">
-               <property name="spacing">
-                <number>20</number>
-               </property>
-               <item>
-                <widget class="QFrame" name="durationSheet">
-                 <property name="minimumSize">
-                  <size>
-                   <width>0</width>
-                   <height>110</height>
-                  </size>
-                 </property>
-                 <property name="role" stdset="0">
-                  <string>sheet</string>
-                 </property>
-                 <layout class="QVBoxLayout" name="durationLayout">
-                  <property name="spacing">
-                   <number>10</number>
-                  </property>
-                  <property name="leftMargin">
-                   <number>14</number>
-                  </property>
-                  <property name="topMargin">
-                   <number>10</number>
-                  </property>
-                  <property name="rightMargin">
-                   <number>14</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>16</number>
-                  </property>
-                  <item>
-                   <widget class="QLabel" name="durationLabel">
-                    <property name="text">
-                     <string>Срок использования упаковки</string>
-                    </property>
-                    <property name="alignment">
-                     <set>Qt::AlignCenter</set>
-                    </property>
-                    <property name="wordWrap">
-                     <bool>true</bool>
-                    </property>
-                    <property name="role" stdset="0">
-                     <string>sectionTitle</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="durationValue">
-                    <property name="text">
-                     <string>—</string>
-                    </property>
-                    <property name="alignment">
-                     <set>Qt::AlignCenter</set>
-                    </property>
-                    <property name="role" stdset="0">
-                     <string>featuredFigure</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="forecastHint">
-                    <property name="text">
-                     <string/>
-                    </property>
-                    <property name="textFormat">
-                     <enum>Qt::PlainText</enum>
-                    </property>
-                    <property name="wordWrap">
-                     <bool>true</bool>
-                    </property>
-                    <property name="role" stdset="0">
-                     <string>muted</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="forecastDurationCaption">
-                    <property name="text">
-                     <string>На сколько хватит упаковки</string>
-                    </property>
-                    <property name="alignment">
-                     <set>Qt::AlignCenter</set>
-                    </property>
-                    <property name="wordWrap">
-                     <bool>true</bool>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-               <item>
-                <widget class="QFrame" name="forecastGraphSheet">
-                 <property name="role" stdset="0">
-                  <string>sheet</string>
-                 </property>
-                 <layout class="QVBoxLayout" name="forecastGraphLayout">
-                  <property name="spacing">
-                   <number>6</number>
-                  </property>
-                  <item>
-                   <widget class="QLabel" name="forecastGraphTitle">
-                    <property name="text">
-                     <string>Остаток за первые 30 дней</string>
-                    </property>
-                    <property name="alignment">
-                     <set>Qt::AlignCenter</set>
-                    </property>
-                    <property name="role" stdset="0">
-                     <string>sectionTitle</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="forecastGraphPreview">
-                    <property name="accessibleName">
-                     <string>График остатка упаковки по дням</string>
-                    </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>0</width>
-                      <height>86</height>
-                     </size>
-                    </property>
-                    <property name="text">
-                     <string>График появится после расчёта</string>
-                    </property>
-                    <property name="alignment">
-                     <set>Qt::AlignCenter</set>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QLabel" name="forecastGraphValue">
-                    <property name="textFormat">
-                     <enum>Qt::PlainText</enum>
-                    </property>
-                    <property name="alignment">
-                     <set>Qt::AlignCenter</set>
-                    </property>
-                    <property name="wordWrap">
-                     <bool>true</bool>
-                    </property>
-                    <property name="role" stdset="0">
-                     <string>muted</string>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <widget class="QTableWidget" name="forecastTable">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="accessibleName">
-                <string>Прогноз по периодам</string>
-               </property>
-               <property name="editTriggers">
-                <set>QAbstractItemView::NoEditTriggers</set>
-               </property>
-               <property name="alternatingRowColors">
-                <bool>true</bool>
-               </property>
-               <property name="selectionMode">
-                <enum>QAbstractItemView::NoSelection</enum>
-               </property>
-               <property name="selectionBehavior">
-                <enum>QAbstractItemView::SelectItems</enum>
-               </property>
-               <attribute name="horizontalHeaderDefaultSectionSize">
-                <number>144</number>
-               </attribute>
-               <attribute name="horizontalHeaderStretchLastSection">
-                <bool>false</bool>
-               </attribute>
-               <attribute name="verticalHeaderVisible">
-                <bool>false</bool>
-               </attribute>
-               <attribute name="verticalHeaderDefaultSectionSize">
-                <number>44</number>
-               </attribute>
-               <row />
-               <row />
-               <column>
-                <property name="text">
-                 <string>Период</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignLeading|AlignVCenter</set>
-                </property>
-               </column>
-               <column>
-                <property name="text">
-                 <string>Применений</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </column>
-               <column>
-                <property name="text">
-                 <string>Расход</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </column>
-               <column>
-                <property name="text">
-                 <string>Затраты, ₽</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </column>
-               <item row="0" column="0">
-                <property name="text">
-                 <string>Месяц</string>
-                </property>
-               </item>
-               <item row="0" column="1">
-                <property name="text">
-                 <string>16</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="0" column="2">
-                <property name="text">
-                 <string>144 мл</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="0" column="3">
-                <property name="text">
-                 <string>100,51</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="1" column="0">
-                <property name="text">
-                 <string>Год</string>
-                </property>
-               </item>
-               <item row="1" column="1">
-                <property name="text">
-                 <string>192</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="1" column="2">
-                <property name="text">
-                 <string>1 728 мл</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-               <item row="1" column="3">
-                <property name="text">
-                 <string>1 206,14</string>
-                </property>
-                <property name="textAlignment">
-                 <set>AlignTrailing|AlignVCenter</set>
-                </property>
-               </item>
-              </widget>
-             </item>
-             <item>
-              <spacer name="forecastSpacer">
-               <property name="orientation">
-                <enum>Qt::Vertical</enum>
-               </property>
-               <property name="sizeType">
-                <enum>QSizePolicy::Expanding</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>0</width>
-                 <height>8</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
-           </widget>
-           <widget class="QWidget" name="characteristicsPage">
-            <layout class="QVBoxLayout" name="characteristicsPageLayout" stretch="0,0,0,0,1,0">
-             <property name="spacing">
-              <number>13</number>
-             </property>
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
-              <number>0</number>
-             </property>
-             <item>
-              <layout class="QHBoxLayout" name="characteristicsHeading" stretch="0,1">
-               <item>
-                <widget class="QLabel" name="characteristicsTitle">
-                 <property name="text">
-                  <string>Характеристики</string>
-                 </property>
-                 <property name="role" stdset="0">
-                  <string>pageTitle</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QLabel" name="characteristicsProduct">
-                 <property name="text">
-                  <string>Гель для посуды</string>
-                 </property>
-                 <property name="wordWrap">
-                 <bool>true</bool>
-                 </property>
-                 <property name="role" stdset="0">
-                  <string>muted</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <widget class="QFrame" name="characteristicsRule">
-               <property name="frameShape">
-                <enum>QFrame::NoFrame</enum>
-               </property>
-               <property name="role" stdset="0">
-                <string>rule</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="characteristicsOfferSelection" stretch="0,1">
-               <item>
-                <widget class="QLabel" name="characteristicsOfferLabel">
-                 <property name="text">
-                  <string>Предложение из «Цен»</string>
-                 </property>
-                 <property name="buddy">
-                  <cstring>characteristicsOfferSelector</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item>
-                <widget class="QComboBox" name="characteristicsOfferSelector">
-                 <property name="sizeAdjustPolicy">
-                  <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
-                 </property>
-                 <property name="minimumContentsLength">
-                  <number>22</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="characteristicsColumns" stretch="5,4">
-               <property name="spacing">
-                <number>24</number>
-               </property>
-               <item>
-                <layout class="QVBoxLayout" name="compositionLayout">
-                 <property name="spacing">
-                  <number>8</number>
-                 </property>
-                 <item>
-                  <widget class="QLabel" name="labelTitle">
-                   <property name="text">
-                    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;Данные с этикетки&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                   </property>
-                   <property name="role" stdset="0">
-                    <string>sectionTitle</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <layout class="QFormLayout" name="labelFields">
-                   <property name="fieldGrowthPolicy">
-                    <enum>QFormLayout::FieldsStayAtSizeHint</enum>
-                   </property>
-                   <property name="horizontalSpacing">
-                    <number>12</number>
-                   </property>
-                   <property name="verticalSpacing">
-                    <number>8</number>
-                   </property>
-                   <item row="0" column="0">
-                    <widget class="QLabel" name="labelPackageLabel">
-                     <property name="text">
-                      <string>В упаковке</string>
-                     </property>
-                     <property name="buddy">
-                      <cstring>labelPackageInput</cstring>
-                     </property>
-                    </widget>
-                   </item>
-                   <item row="0" column="1">
-                    <widget class="QLineEdit" name="labelPackageInput">
-                     <property name="text">
-                      <string>500 мл</string>
-                     </property>
-                     <property name="readOnly">
-                      <bool>true</bool>
-                     </property>
-                     <property name="placeholderText">
-                      <string>Из вкладки «Расход»</string>
-                     </property>
-                    </widget>
+                        <item>
+                         <widget class="QLabel" name="usageResultTitle">
+                          <property name="text">
+                           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:16pt;&quot;&gt;Результат расчёта&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>sectionTitle</string>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QLabel" name="usageCostLabel">
+                          <property name="text">
+                           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;Стоимость одного применения&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                          </property>
+                          <property name="wordWrap">
+                           <bool>true</bool>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QLabel" name="usageCostValue">
+                          <property name="text">
+                           <string>6,28 ₽</string>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>featuredFigure</string>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QFrame" name="usageResultsRule">
+                          <property name="frameShape">
+                           <enum>QFrame::NoFrame</enum>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>rule</string>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <layout class="QGridLayout" name="usageMetrics" columnstretch="1,0">
+                          <property name="horizontalSpacing">
+                           <number>8</number>
+                          </property>
+                          <property name="verticalSpacing">
+                           <number>10</number>
+                          </property>
+                          <item row="0" column="0">
+                           <widget class="QLabel" name="averageUsageLabel">
+                            <property name="text">
+                             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Средний расход&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                            </property>
+                            <property name="wordWrap">
+                             <bool>true</bool>
+                            </property>
+                           </widget>
+                          </item>
+                          <item row="0" column="1">
+                           <widget class="QLabel" name="averageUsageValue">
+                            <property name="text">
+                             <string>9 мл</string>
+                            </property>
+                            <property name="alignment">
+                             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                            </property>
+                            <property name="role" stdset="0">
+                             <string>figure</string>
+                            </property>
+                           </widget>
+                          </item>
+                          <item row="1" column="0">
+                           <widget class="QLabel" name="fullUsesLabel">
+                            <property name="text">
+                             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Применений из упаковки&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                            </property>
+                            <property name="wordWrap">
+                             <bool>true</bool>
+                            </property>
+                           </widget>
+                          </item>
+                          <item row="1" column="1">
+                           <widget class="QLabel" name="fullUsesValue">
+                            <property name="text">
+                             <string>55</string>
+                            </property>
+                            <property name="alignment">
+                             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                            </property>
+                            <property name="role" stdset="0">
+                             <string>figure</string>
+                            </property>
+                           </widget>
+                          </item>
+                          <item row="2" column="0">
+                           <widget class="QLabel" name="sampleCountLabel">
+                            <property name="text">
+                             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Количество замеров&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                            </property>
+                            <property name="wordWrap">
+                             <bool>true</bool>
+                            </property>
+                           </widget>
+                          </item>
+                          <item row="2" column="1">
+                           <widget class="QLabel" name="sampleCountValue">
+                            <property name="text">
+                             <string>—</string>
+                            </property>
+                            <property name="textFormat">
+                             <enum>Qt::PlainText</enum>
+                            </property>
+                            <property name="alignment">
+                             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                            </property>
+                            <property name="role" stdset="0">
+                             <string>figure</string>
+                            </property>
+                           </widget>
+                          </item>
+                          <item row="3" column="0">
+                           <widget class="QLabel" name="sampleRangeLabel">
+                            <property name="text">
+                             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Диапазон расхода&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                            </property>
+                            <property name="wordWrap">
+                             <bool>true</bool>
+                            </property>
+                           </widget>
+                          </item>
+                          <item row="3" column="1">
+                           <widget class="QLabel" name="sampleRangeValue">
+                            <property name="text">
+                             <string>—</string>
+                            </property>
+                            <property name="textFormat">
+                             <enum>Qt::PlainText</enum>
+                            </property>
+                            <property name="alignment">
+                             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                            </property>
+                            <property name="role" stdset="0">
+                             <string>figure</string>
+                            </property>
+                           </widget>
+                          </item>
+                         </layout>
+                        </item>
+                       </layout>
+                      </widget>
+                     </item>
+                    </layout>
                    </item>
                   </layout>
                  </item>
                  <item>
-                  <widget class="QLabel" name="packageShareLabel">
-                   <property name="text">
-                    <string>Расход за применение — 1,8 % упаковки</string>
-                   </property>
-                   <property name="wordWrap">
-                    <bool>true</bool>
-                   </property>
-                   <property name="role" stdset="0">
-                    <string>muted</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="compositionSectionGap">
-                   <property name="orientation">
-                    <enum>Qt::Vertical</enum>
-                   </property>
-                   <property name="sizeType">
-                    <enum>QSizePolicy::Fixed</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>0</width>
-                     <height>10</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                 <item>
-                  <widget class="QLabel" name="compositionLabel">
-                   <property name="text">
-                    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt; font-weight:600;&quot;&gt;Состав&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                   </property>
-                   <property name="buddy">
-                    <cstring>compositionInput</cstring>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QPlainTextEdit" name="compositionInput">
-                   <property name="minimumSize">
-                    <size>
-                     <width>0</width>
-                     <height>66</height>
-                    </size>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>16777215</width>
-                     <height>108</height>
-                    </size>
-                   </property>
-                   <property name="tabChangesFocus">
-                    <bool>true</bool>
-                   </property>
-                   <property name="plainText">
-                    <string>Вода
-    Анионные ПАВ
-    Неионогенные ПАВ
-    Отдушка</string>
-                   </property>
-                   <property name="placeholderText">
-                    <string>Компоненты через запятую, точку с запятой или с новой строки</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QPushButton" name="analyzeCompositionButton">
-                   <property name="text">
-                    <string>Проанализировать состав</string>
-                   </property>
-                   <property name="role" stdset="0">
-                    <string>primary</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QLabel" name="componentCount">
-                   <property name="text">
-                    <string>Уникальных компонентов — 4</string>
-                   </property>
-                   <property name="wordWrap">
-                    <bool>true</bool>
-                   </property>
-                   <property name="role" stdset="0">
-                    <string>muted</string>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </item>
-               <item>
-                <layout class="QVBoxLayout" name="effectivenessSheetColumn">
-                 <item alignment="Qt::AlignTop">
-                  <widget class="QFrame" name="customerRatingSheet">
-                   <property name="role" stdset="0">
-                    <string>sheet</string>
-                   </property>
-                   <layout class="QVBoxLayout" name="customerRatingLayout">
-                    <property name="spacing">
-                     <number>10</number>
-                    </property>
-                    <property name="leftMargin">
-                     <number>16</number>
-                    </property>
-                    <property name="topMargin">
-                     <number>14</number>
-                    </property>
-                    <property name="rightMargin">
-                     <number>16</number>
-                    </property>
-                    <property name="bottomMargin">
-                     <number>16</number>
-                    </property>
-                    <item>
-                     <widget class="QLabel" name="customerRatingTitle">
-                      <property name="text">
-                       <string>Оценка покупателей</string>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>sectionTitle</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QFrame" name="customerRatingRule">
-                      <property name="frameShape">
-                       <enum>QFrame::NoFrame</enum>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>rule</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="customerRatingValue">
-                      <property name="styleSheet">
-                       <string notr="true">font-size: 30px;</string>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>featuredFigure</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="customerRatingCount">
-                      <property name="wordWrap">
-                       <bool>true</bool>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="customerRatingPositive">
-                      <property name="wordWrap">
-                       <bool>true</bool>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="customerRatingSource">
-                      <property name="text">
-                       <string>Нет данных об оценках</string>
-                      </property>
-                      <property name="textFormat">
-                       <enum>Qt::PlainText</enum>
-                      </property>
-                      <property name="wordWrap">
-                       <bool>true</bool>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>muted</string>
-                      </property>
-                     </widget>
-                    </item>
-                   </layout>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QFrame" name="effectivenessSheet">
-                   <property name="visible">
-                    <bool>false</bool>
-                   </property>
-                   <property name="role" stdset="0">
-                    <string>sheet</string>
-                   </property>
-                   <layout class="QVBoxLayout" name="effectivenessLayout">
-                    <property name="spacing">
-                     <number>7</number>
-                    </property>
-                    <property name="leftMargin">
-                     <number>16</number>
-                    </property>
-                    <property name="topMargin">
-                     <number>14</number>
-                    </property>
-                    <property name="rightMargin">
-                     <number>16</number>
-                    </property>
-                    <property name="bottomMargin">
-                     <number>16</number>
-                    </property>
-                    <item>
-                     <widget class="QLabel" name="effectivenessTitle">
-                      <property name="styleSheet">
-                       <string notr="true">font-size: 21px;</string>
-                      </property>
-                      <property name="text">
-                       <string>Результат испытаний из истории</string>
-                      </property>
-                      <property name="wordWrap">
-                       <bool>true</bool>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>sectionTitle</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QFrame" name="effectivenessRule">
-                      <property name="frameShape">
-                       <enum>QFrame::NoFrame</enum>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>rule</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <layout class="QFormLayout" name="effectivenessFields">
-                      <property name="fieldGrowthPolicy">
-                       <enum>QFormLayout::FieldsStayAtSizeHint</enum>
-                      </property>
-                      <property name="rowWrapPolicy">
-                       <enum>QFormLayout::WrapLongRows</enum>
-                      </property>
-                      <property name="horizontalSpacing">
-                       <number>12</number>
-                      </property>
-                      <property name="verticalSpacing">
-                       <number>8</number>
-                      </property>
-                      <item row="0" column="0">
-                       <widget class="QLabel" name="testCountLabel">
-                        <property name="styleSheet">
-                         <string notr="true">font-size: 17px;</string>
-                        </property>
-                        <property name="text">
-                         <string>Испытаний</string>
-                        </property>
-                        <property name="buddy">
-                         <cstring>testCountInput</cstring>
-                        </property>
-                       </widget>
-                      </item>
-                      <item row="0" column="1">
-                       <widget class="QSpinBox" name="testCountInput">
-                         <property name="readOnly">
-                          <bool>true</bool>
-                         </property>
-                         <property name="buttonSymbols">
-                          <enum>QAbstractSpinBox::NoButtons</enum>
-                         </property>
-                        <property name="minimumSize">
-                         <size>
-                          <width>140</width>
-                          <height>27</height>
-                         </size>
-                        </property>
-                        <property name="styleSheet">
-                         <string notr="true">font-size: 16px;</string>
-                        </property>
-                        <property name="minimum">
-                         <number>0</number>
-                        </property>
-                        <property name="maximum">
-                         <number>100000</number>
-                        </property>
-                        <property name="value">
-                         <number>10</number>
-                        </property>
-                       </widget>
-                      </item>
-                      <item row="1" column="0">
-                       <widget class="QLabel" name="successCountLabel">
-                        <property name="styleSheet">
-                         <string notr="true">font-size: 17px;</string>
-                        </property>
-                        <property name="text">
-                         <string>Успешных</string>
-                        </property>
-                        <property name="buddy">
-                         <cstring>successCountInput</cstring>
-                        </property>
-                       </widget>
-                      </item>
-                      <item row="1" column="1">
-                       <widget class="QSpinBox" name="successCountInput">
-                         <property name="readOnly">
-                          <bool>true</bool>
-                         </property>
-                         <property name="buttonSymbols">
-                          <enum>QAbstractSpinBox::NoButtons</enum>
-                         </property>
-                        <property name="minimumSize">
-                         <size>
-                          <width>140</width>
-                          <height>27</height>
-                         </size>
-                        </property>
-                        <property name="styleSheet">
-                         <string notr="true">font-size: 16px;</string>
-                        </property>
-                        <property name="minimum">
-                         <number>0</number>
-                        </property>
-                        <property name="maximum">
-                         <number>100000</number>
-                        </property>
-                        <property name="value">
-                         <number>8</number>
-                        </property>
-                       </widget>
-                      </item>
-                     </layout>
-                    </item>
-                    <item alignment="Qt::AlignBottom">
-                     <widget class="QLabel" name="effectivenessLabel">
-                      <property name="text">
-                       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;Доля успешных применений&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                      </property>
-                      <property name="alignment">
-                       <set>Qt::AlignCenter</set>
-                      </property>
-                      <property name="wordWrap">
-                       <bool>true</bool>
-                      </property>
-                     </widget>
-                    </item>
-                    <item alignment="Qt::AlignTop">
-                     <widget class="QLabel" name="effectivenessValue">
-                      <property name="styleSheet">
-                       <string notr="true">font-size: 30px;</string>
-                      </property>
-                      <property name="text">
-                       <string>80 %</string>
-                      </property>
-                      <property name="alignment">
-                       <set>Qt::AlignCenter</set>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>featuredFigure</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <layout class="QHBoxLayout" name="successCostResult" stretch="1,0">
-                      <item>
-                       <widget class="QLabel" name="successCostLabel">
-                        <property name="text">
-                         <string>Стоимость успешного применения</string>
-                        </property>
-                        <property name="toolTip">
-                         <string>Затраты на все испытания делятся на число успешных применений</string>
-                        </property>
-                        <property name="wordWrap">
-                         <bool>true</bool>
-                        </property>
-                       </widget>
-                      </item>
-                      <item>
-                       <widget class="QLabel" name="successCostValue">
-                        <property name="text">
-                         <string>—</string>
-                        </property>
-                       </widget>
-                      </item>
-                     </layout>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="effectivenessError">
-                      <property name="wordWrap">
-                       <bool>true</bool>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>muted</string>
-                      </property>
-                     </widget>
-                    </item>
-                   </layout>
-                  </widget>
-                 </item>
-                </layout>
-               </item>
-              </layout>
-             </item>
-             <item>
-              <widget class="QTableWidget" name="compositionTable">
-               <property name="minimumSize">
-                <size>
-                 <width>0</width>
-                 <height>132</height>
-                </size>
-               </property>
-               <property name="accessibleName">
-                <string>Результат анализа состава</string>
-               </property>
-               <property name="editTriggers">
-                <set>QAbstractItemView::NoEditTriggers</set>
-               </property>
-               <property name="selectionMode">
-                <enum>QAbstractItemView::SingleSelection</enum>
-               </property>
-               <property name="selectionBehavior">
-                <enum>QAbstractItemView::SelectRows</enum>
-               </property>
-               <property name="alternatingRowColors">
-                <bool>true</bool>
-               </property>
-               <property name="wordWrap">
-                <bool>true</bool>
-               </property>
-               <property name="textElideMode">
-                <enum>Qt::ElideNone</enum>
-               </property>
-               <attribute name="verticalHeaderVisible">
-                <bool>false</bool>
-               </attribute>
-               <column>
-                <property name="text"><string>Компонент</string></property>
-               </column>
-               <column>
-                <property name="text"><string>Доля</string></property>
-               </column>
-               <column>
-                <property name="text"><string>Роль</string></property>
-               </column>
-               <column>
-                <property name="text"><string>Что учесть</string></property>
-               </column>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLabel" name="compositionNotice">
-               <property name="text">
-                <string>Для оценки безопасности средства важны точные концентрации и предупреждения на упаковке.</string>
-               </property>
-               <property name="wordWrap">
-                <bool>true</bool>
-               </property>
-               <property name="role" stdset="0">
-                <string>muted</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-           <widget class="QWidget" name="accountPage">
-            <layout class="QVBoxLayout" name="accountPageLayout">
-             <property name="spacing">
-              <number>13</number>
-             </property>
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
-              <number>0</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="accountTitle">
-               <property name="text">
-                <string>Личный кабинет</string>
-               </property>
-               <property name="role" stdset="0">
-                <string>pageTitle</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QFrame" name="accountRule">
-               <property name="frameShape">
-                <enum>QFrame::NoFrame</enum>
-               </property>
-               <property name="role" stdset="0">
-                <string>rule</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="accountColumns" stretch="3,5">
-               <property name="spacing">
-                <number>23</number>
-               </property>
-               <item>
-                <layout class="QVBoxLayout" name="signInColumn" stretch="0,1">
-                 <property name="spacing">
-                  <number>0</number>
-                 </property>
-                 <item>
-                  <widget class="QFrame" name="signInCard">
-                   <property name="role" stdset="0">
-                    <string>sheet</string>
-                   </property>
-                   <layout class="QVBoxLayout" name="signInLayout">
-                    <property name="spacing">
-                     <number>9</number>
-                    </property>
-                    <property name="leftMargin">
-                     <number>16</number>
-                    </property>
-                    <property name="topMargin">
-                     <number>16</number>
-                    </property>
-                    <property name="rightMargin">
-                     <number>16</number>
-                    </property>
-                    <property name="bottomMargin">
-                     <number>16</number>
-                    </property>
-                    <item>
-                     <widget class="QLabel" name="signInTitle">
-                      <property name="text">
-                       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:18pt;&quot;&gt;Вход&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>sectionTitle</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="emailLabel">
-                      <property name="text">
-                       <string>Электронная почта</string>
-                      </property>
-                      <property name="buddy">
-                       <cstring>emailInput</cstring>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLineEdit" name="emailInput">
-                      <property name="placeholderText">
-                       <string>name@example.ru</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="passwordLabel">
-                      <property name="text">
-                       <string>Пароль</string>
-                      </property>
-                      <property name="buddy">
-                       <cstring>passwordInput</cstring>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <widget class="QLineEdit" name="passwordInput">
-                      <property name="echoMode">
-                       <enum>QLineEdit::Password</enum>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <layout class="QHBoxLayout" name="accountButtons">
-                      <item>
-                       <widget class="QPushButton" name="signInButton">
-                        <property name="text">
-                         <string>Войти</string>
-                        </property>
-                        <property name="role" stdset="0">
-                         <string>primary</string>
-                        </property>
-                       </widget>
-                      </item>
-                      <item>
-                       <widget class="QPushButton" name="registerButton">
-                        <property name="text">
-                         <string>Регистрация</string>
-                        </property>
-                       </widget>
-                      </item>
-                     </layout>
-                    </item>
-                    <item>
-                     <widget class="QLabel" name="accountStatus">
-                      <property name="wordWrap">
-                       <bool>true</bool>
-                      </property>
-                      <property name="role" stdset="0">
-                       <string>muted</string>
-                      </property>
-                     </widget>
-                    </item>
-                   </layout>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="signInSpacer">
+                  <spacer name="usagePageBottomSpacer">
                    <property name="orientation">
                     <enum>Qt::Vertical</enum>
                    </property>
@@ -2537,36 +1343,350 @@ QHeaderView::section {
                   </spacer>
                  </item>
                 </layout>
-               </item>
-               <item>
-                <layout class="QVBoxLayout" name="historyLayout">
+               </widget>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+           <widget class="QWidget" name="forecastPage">
+            <layout class="QVBoxLayout" name="forecastPageContainer">
+             <property name="spacing"><number>0</number></property>
+             <property name="leftMargin"><number>0</number></property>
+             <property name="topMargin"><number>0</number></property>
+             <property name="rightMargin"><number>0</number></property>
+             <property name="bottomMargin"><number>0</number></property>
+             <item>
+              <widget class="QScrollArea" name="forecastPageScroll">
+               <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+               <property name="widgetResizable"><bool>true</bool></property>
+               <widget class="QWidget" name="forecastPageContent">
+                <layout class="QVBoxLayout" name="forecastPageLayout" stretch="0,0,0,0,0,0,1">
                  <property name="spacing">
-                  <number>9</number>
+                  <number>13</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
                  </property>
                  <item>
-                  <widget class="QLabel" name="historyTitle">
-                   <property name="text">
-                    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;История запросов&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                  <layout class="QHBoxLayout" name="forecastHeading" stretch="1,0">
+                   <item>
+                    <widget class="QLabel" name="forecastTitle">
+                     <property name="text">
+                      <string>Прогноз расходов</string>
+                     </property>
+                     <property name="role" stdset="0">
+                      <string>pageTitle</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLabel" name="forecastProduct">
+                     <property name="text">
+                      <string>Гель для посуды · 500 мл</string>
+                     </property>
+                     <property name="wordWrap">
+                      <bool>true</bool>
+                     </property>
+                     <property name="role" stdset="0">
+                      <string>muted</string>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <widget class="QFrame" name="forecastRule">
+                   <property name="frameShape">
+                    <enum>QFrame::NoFrame</enum>
                    </property>
                    <property name="role" stdset="0">
-                    <string>sectionTitle</string>
+                    <string>rule</string>
                    </property>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLineEdit" name="historySearchInput">
-                   <property name="placeholderText">
-                    <string>Поиск по товару, действию или результату</string>
-                   </property>
-                   <property name="clearButtonEnabled">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
+                  <layout class="QHBoxLayout" name="forecastOfferSelection" stretch="0,1">
+                   <item>
+                    <widget class="QLabel" name="forecastOfferLabel">
+                     <property name="text">
+                      <string>Предложение из «Цен»</string>
+                     </property>
+                     <property name="buddy">
+                      <cstring>forecastOfferSelector</cstring>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="forecastOfferSelector">
+                     <property name="sizeAdjustPolicy">
+                      <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
+                     </property>
+                     <property name="minimumContentsLength">
+                      <number>22</number>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
                  </item>
                  <item>
-                  <widget class="QTableWidget" name="historyTable">
+                  <layout class="QHBoxLayout" name="frequencyFields" stretch="0,0,0,0,1">
+                   <property name="spacing">
+                    <number>9</number>
+                   </property>
+                   <item>
+                    <widget class="QLabel" name="frequencyLabel">
+                     <property name="text">
+                      <string>Применений</string>
+                     </property>
+                     <property name="buddy">
+                      <cstring>frequencyInput</cstring>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QSpinBox" name="frequencyInput">
+                     <property name="minimumSize">
+                      <size>
+                       <width>86</width>
+                       <height>27</height>
+                      </size>
+                     </property>
+                     <property name="minimum">
+                      <number>1</number>
+                     </property>
+                     <property name="maximum">
+                      <number>10000</number>
+                     </property>
+                     <property name="value">
+                      <number>16</number>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="frequencyPeriod">
+                     <property name="minimumSize">
+                      <size>
+                       <width>112</width>
+                       <height>27</height>
+                      </size>
+                     </property>
+                     <property name="accessibleName">
+                      <string>Период</string>
+                     </property>
+                     <item>
+                      <property name="text">
+                       <string>в месяц</string>
+                      </property>
+                     </item>
+                     <item>
+                      <property name="text">
+                       <string>в год</string>
+                      </property>
+                     </item>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="calculateForecastButton">
+                     <property name="text">
+                      <string>Рассчитать</string>
+                     </property>
+                     <property name="role" stdset="0">
+                      <string>primary</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <spacer name="forecastFieldsSpacer">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                     <property name="sizeType">
+                      <enum>QSizePolicy::Expanding</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>8</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <layout class="QHBoxLayout" name="forecastSummary" stretch="1,1">
+                   <property name="spacing">
+                    <number>20</number>
+                   </property>
+                   <item>
+                    <widget class="QFrame" name="durationSheet">
+                     <property name="minimumSize">
+                      <size>
+                       <width>0</width>
+                       <height>110</height>
+                      </size>
+                     </property>
+                     <property name="role" stdset="0">
+                      <string>sheet</string>
+                     </property>
+                     <layout class="QVBoxLayout" name="durationLayout">
+                      <property name="spacing">
+                       <number>10</number>
+                      </property>
+                      <property name="leftMargin">
+                       <number>14</number>
+                      </property>
+                      <property name="topMargin">
+                       <number>10</number>
+                      </property>
+                      <property name="rightMargin">
+                       <number>14</number>
+                      </property>
+                      <property name="bottomMargin">
+                       <number>16</number>
+                      </property>
+                      <item>
+                       <widget class="QLabel" name="durationLabel">
+                        <property name="text">
+                         <string>Срок использования упаковки</string>
+                        </property>
+                        <property name="alignment">
+                         <set>Qt::AlignCenter</set>
+                        </property>
+                        <property name="wordWrap">
+                         <bool>true</bool>
+                        </property>
+                        <property name="role" stdset="0">
+                         <string>sectionTitle</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="durationValue">
+                        <property name="text">
+                         <string>—</string>
+                        </property>
+                        <property name="alignment">
+                         <set>Qt::AlignCenter</set>
+                        </property>
+                        <property name="role" stdset="0">
+                         <string>featuredFigure</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="forecastHint">
+                        <property name="text">
+                         <string/>
+                        </property>
+                        <property name="textFormat">
+                         <enum>Qt::PlainText</enum>
+                        </property>
+                        <property name="wordWrap">
+                         <bool>true</bool>
+                        </property>
+                        <property name="role" stdset="0">
+                         <string>muted</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="forecastDurationCaption">
+                        <property name="text">
+                         <string>На сколько хватит упаковки</string>
+                        </property>
+                        <property name="alignment">
+                         <set>Qt::AlignCenter</set>
+                        </property>
+                        <property name="wordWrap">
+                         <bool>true</bool>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QFrame" name="forecastGraphSheet">
+                     <property name="role" stdset="0">
+                      <string>sheet</string>
+                     </property>
+                     <layout class="QVBoxLayout" name="forecastGraphLayout">
+                      <property name="spacing">
+                       <number>6</number>
+                      </property>
+                      <item>
+                       <widget class="QLabel" name="forecastGraphTitle">
+                        <property name="text">
+                         <string>Остаток за первые 30 дней</string>
+                        </property>
+                        <property name="alignment">
+                         <set>Qt::AlignCenter</set>
+                        </property>
+                        <property name="role" stdset="0">
+                         <string>sectionTitle</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="forecastGraphPreview">
+                        <property name="accessibleName">
+                         <string>График остатка упаковки по дням</string>
+                        </property>
+                        <property name="minimumSize">
+                         <size>
+                          <width>0</width>
+                          <height>86</height>
+                         </size>
+                        </property>
+                        <property name="text">
+                         <string>График появится после расчёта</string>
+                        </property>
+                        <property name="alignment">
+                         <set>Qt::AlignCenter</set>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="forecastGraphValue">
+                        <property name="textFormat">
+                         <enum>Qt::PlainText</enum>
+                        </property>
+                        <property name="alignment">
+                         <set>Qt::AlignCenter</set>
+                        </property>
+                        <property name="wordWrap">
+                         <bool>true</bool>
+                        </property>
+                        <property name="role" stdset="0">
+                         <string>muted</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <widget class="QTableWidget" name="forecastTable">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
                    <property name="accessibleName">
-                    <string>История запросов</string>
+                    <string>Прогноз по периодам</string>
                    </property>
                    <property name="editTriggers">
                     <set>QAbstractItemView::NoEditTriggers</set>
@@ -2575,77 +1695,730 @@ QHeaderView::section {
                     <bool>true</bool>
                    </property>
                    <property name="selectionMode">
-                    <enum>QAbstractItemView::SingleSelection</enum>
+                    <enum>QAbstractItemView::NoSelection</enum>
                    </property>
                    <property name="selectionBehavior">
-                    <enum>QAbstractItemView::SelectRows</enum>
+                    <enum>QAbstractItemView::SelectItems</enum>
                    </property>
                    <attribute name="horizontalHeaderDefaultSectionSize">
-                    <number>104</number>
+                    <number>144</number>
                    </attribute>
                    <attribute name="horizontalHeaderStretchLastSection">
-                    <bool>true</bool>
+                    <bool>false</bool>
                    </attribute>
                    <attribute name="verticalHeaderVisible">
                     <bool>false</bool>
                    </attribute>
                    <attribute name="verticalHeaderDefaultSectionSize">
-                    <number>34</number>
+                    <number>44</number>
                    </attribute>
+                   <row />
+                   <row />
                    <column>
                     <property name="text">
-                     <string>Дата</string>
+                     <string>Период</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignLeading|AlignVCenter</set>
                     </property>
                    </column>
                    <column>
                     <property name="text">
-                     <string>Товар</string>
+                     <string>Применений</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
                     </property>
                    </column>
                    <column>
                     <property name="text">
-                     <string>Действие</string>
+                     <string>Расход</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
                     </property>
                    </column>
+                   <column>
+                    <property name="text">
+                     <string>Затраты, ₽</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </column>
+                   <item row="0" column="0">
+                    <property name="text">
+                     <string>Месяц</string>
+                    </property>
+                   </item>
+                   <item row="0" column="1">
+                    <property name="text">
+                     <string>16</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="0" column="2">
+                    <property name="text">
+                     <string>144 мл</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="0" column="3">
+                    <property name="text">
+                     <string>100,51</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="1" column="0">
+                    <property name="text">
+                     <string>Год</string>
+                    </property>
+                   </item>
+                   <item row="1" column="1">
+                    <property name="text">
+                     <string>192</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="1" column="2">
+                    <property name="text">
+                     <string>1 728 мл</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
+                   <item row="1" column="3">
+                    <property name="text">
+                     <string>1 206,14</string>
+                    </property>
+                    <property name="textAlignment">
+                     <set>AlignTrailing|AlignVCenter</set>
+                    </property>
+                   </item>
                   </widget>
                  </item>
                  <item>
-                  <widget class="QPlainTextEdit" name="historyDetails">
-                   <property name="accessibleName">
-                    <string>Подробности выбранной записи</string>
+                  <spacer name="forecastSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Vertical</enum>
                    </property>
-                   <property name="placeholderText">
-                    <string>Выберите запись, чтобы увидеть подробности</string>
+                   <property name="sizeType">
+                    <enum>QSizePolicy::Expanding</enum>
                    </property>
-                   <property name="readOnly">
-                    <bool>true</bool>
-                   </property>
-                   <property name="minimumSize">
+                   <property name="sizeHint" stdset="0">
                     <size>
                      <width>0</width>
-                     <height>108</height>
+                     <height>8</height>
                     </size>
                    </property>
-                  </widget>
+                  </spacer>
                  </item>
+                </layout>
+               </widget>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+           <widget class="QWidget" name="characteristicsPage">
+            <layout class="QVBoxLayout" name="characteristicsPageContainer">
+             <property name="spacing"><number>0</number></property>
+             <property name="leftMargin"><number>0</number></property>
+             <property name="topMargin"><number>0</number></property>
+             <property name="rightMargin"><number>0</number></property>
+             <property name="bottomMargin"><number>0</number></property>
+             <item>
+              <widget class="QScrollArea" name="characteristicsPageScroll">
+               <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+               <property name="widgetResizable"><bool>true</bool></property>
+               <widget class="QWidget" name="characteristicsPageContent">
+                <layout class="QVBoxLayout" name="characteristicsPageLayout" stretch="0,0,0,0,1,0">
+                 <property name="spacing">
+                  <number>13</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
                  <item>
-                  <layout class="QHBoxLayout" name="historyRecordActions">
+                  <layout class="QHBoxLayout" name="characteristicsHeading" stretch="0,1">
                    <item>
-                    <widget class="QPushButton" name="copyHistoryButton">
-                     <property name="text"><string>Копировать запись</string></property>
+                    <widget class="QLabel" name="characteristicsTitle">
+                     <property name="text">
+                      <string>Характеристики</string>
+                     </property>
+                     <property name="role" stdset="0">
+                      <string>pageTitle</string>
+                     </property>
                     </widget>
                    </item>
                    <item>
-                    <widget class="QPushButton" name="openHistoryButton">
-                     <property name="text"><string>Открыть расчёт</string></property>
+                    <widget class="QLabel" name="characteristicsProduct">
+                     <property name="text">
+                      <string>Гель для посуды</string>
+                     </property>
+                     <property name="wordWrap">
+                     <bool>true</bool>
+                     </property>
+                     <property name="role" stdset="0">
+                      <string>muted</string>
+                     </property>
                     </widget>
                    </item>
                   </layout>
                  </item>
                  <item>
-                  <widget class="QLabel" name="historyHint">
+                  <widget class="QFrame" name="characteristicsRule">
+                   <property name="frameShape">
+                    <enum>QFrame::NoFrame</enum>
+                   </property>
+                   <property name="role" stdset="0">
+                    <string>rule</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <layout class="QHBoxLayout" name="characteristicsOfferSelection" stretch="0,1">
+                   <item>
+                    <widget class="QLabel" name="characteristicsOfferLabel">
+                     <property name="text">
+                      <string>Предложение из «Цен»</string>
+                     </property>
+                     <property name="buddy">
+                      <cstring>characteristicsOfferSelector</cstring>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QComboBox" name="characteristicsOfferSelector">
+                     <property name="sizeAdjustPolicy">
+                      <enum>QComboBox::AdjustToMinimumContentsLengthWithIcon</enum>
+                     </property>
+                     <property name="minimumContentsLength">
+                      <number>22</number>
+                     </property>
+                    </widget>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <layout class="QHBoxLayout" name="characteristicsColumns" stretch="5,4">
+                   <property name="spacing">
+                    <number>24</number>
+                   </property>
+                   <item>
+                    <layout class="QVBoxLayout" name="compositionLayout">
+                     <property name="spacing">
+                      <number>8</number>
+                     </property>
+                     <item>
+                      <widget class="QLabel" name="labelTitle">
+                       <property name="text">
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:14pt;&quot;&gt;Данные с этикетки&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                       </property>
+                       <property name="role" stdset="0">
+                        <string>sectionTitle</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <layout class="QFormLayout" name="labelFields">
+                       <property name="fieldGrowthPolicy">
+                        <enum>QFormLayout::FieldsStayAtSizeHint</enum>
+                       </property>
+                       <property name="horizontalSpacing">
+                        <number>12</number>
+                       </property>
+                       <property name="verticalSpacing">
+                        <number>8</number>
+                       </property>
+                       <item row="0" column="0">
+                        <widget class="QLabel" name="labelPackageLabel">
+                         <property name="text">
+                          <string>В упаковке</string>
+                         </property>
+                         <property name="buddy">
+                          <cstring>labelPackageInput</cstring>
+                         </property>
+                        </widget>
+                       </item>
+                       <item row="0" column="1">
+                        <widget class="QLineEdit" name="labelPackageInput">
+                         <property name="text">
+                          <string>500 мл</string>
+                         </property>
+                         <property name="readOnly">
+                          <bool>true</bool>
+                         </property>
+                         <property name="placeholderText">
+                          <string>Из вкладки «Расход»</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </item>
+                     <item>
+                      <widget class="QLabel" name="packageShareLabel">
+                       <property name="text">
+                        <string>Расход за применение — 1,8 % упаковки</string>
+                       </property>
+                       <property name="wordWrap">
+                        <bool>true</bool>
+                       </property>
+                       <property name="role" stdset="0">
+                        <string>muted</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <spacer name="compositionSectionGap">
+                       <property name="orientation">
+                        <enum>Qt::Vertical</enum>
+                       </property>
+                       <property name="sizeType">
+                        <enum>QSizePolicy::Fixed</enum>
+                       </property>
+                       <property name="sizeHint" stdset="0">
+                        <size>
+                         <width>0</width>
+                         <height>10</height>
+                        </size>
+                       </property>
+                      </spacer>
+                     </item>
+                     <item>
+                      <widget class="QLabel" name="compositionLabel">
+                       <property name="text">
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt; font-weight:600;&quot;&gt;Состав&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                       </property>
+                       <property name="buddy">
+                        <cstring>compositionInput</cstring>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPlainTextEdit" name="compositionInput">
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>66</height>
+                        </size>
+                       </property>
+                       <property name="maximumSize">
+                        <size>
+                         <width>16777215</width>
+                         <height>108</height>
+                        </size>
+                       </property>
+                       <property name="tabChangesFocus">
+                        <bool>true</bool>
+                       </property>
+                       <property name="plainText">
+                        <string>Вода
+        Анионные ПАВ
+        Неионогенные ПАВ
+        Отдушка</string>
+                       </property>
+                       <property name="placeholderText">
+                        <string>Компоненты через запятую, точку с запятой или с новой строки</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPushButton" name="analyzeCompositionButton">
+                       <property name="text">
+                        <string>Проанализировать состав</string>
+                       </property>
+                       <property name="role" stdset="0">
+                        <string>primary</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QLabel" name="componentCount">
+                       <property name="text">
+                        <string>Уникальных компонентов — 4</string>
+                       </property>
+                       <property name="wordWrap">
+                        <bool>true</bool>
+                       </property>
+                       <property name="role" stdset="0">
+                        <string>muted</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </item>
+                   <item>
+                    <layout class="QVBoxLayout" name="effectivenessSheetColumn">
+                     <item alignment="Qt::AlignTop">
+                      <widget class="QFrame" name="customerRatingSheet">
+                       <property name="role" stdset="0">
+                        <string>sheet</string>
+                       </property>
+                       <layout class="QVBoxLayout" name="customerRatingLayout">
+                        <property name="spacing">
+                         <number>10</number>
+                        </property>
+                        <property name="leftMargin">
+                         <number>16</number>
+                        </property>
+                        <property name="topMargin">
+                         <number>14</number>
+                        </property>
+                        <property name="rightMargin">
+                         <number>16</number>
+                        </property>
+                        <property name="bottomMargin">
+                         <number>16</number>
+                        </property>
+                        <item>
+                         <widget class="QLabel" name="customerRatingTitle">
+                          <property name="text">
+                           <string>Оценка покупателей</string>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>sectionTitle</string>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QFrame" name="customerRatingRule">
+                          <property name="frameShape">
+                           <enum>QFrame::NoFrame</enum>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>rule</string>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QLabel" name="customerRatingValue">
+                          <property name="styleSheet">
+                           <string notr="true">font-size: 30px;</string>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>featuredFigure</string>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QLabel" name="customerRatingCount">
+                          <property name="wordWrap">
+                           <bool>true</bool>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QLabel" name="customerRatingPositive">
+                          <property name="wordWrap">
+                           <bool>true</bool>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QLabel" name="customerRatingSource">
+                          <property name="text">
+                           <string>Нет данных об оценках</string>
+                          </property>
+                          <property name="textFormat">
+                           <enum>Qt::PlainText</enum>
+                          </property>
+                          <property name="wordWrap">
+                           <bool>true</bool>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>muted</string>
+                          </property>
+                         </widget>
+                        </item>
+                       </layout>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QFrame" name="effectivenessSheet">
+                       <property name="visible">
+                        <bool>false</bool>
+                       </property>
+                       <property name="role" stdset="0">
+                        <string>sheet</string>
+                       </property>
+                       <layout class="QVBoxLayout" name="effectivenessLayout">
+                        <property name="spacing">
+                         <number>7</number>
+                        </property>
+                        <property name="leftMargin">
+                         <number>16</number>
+                        </property>
+                        <property name="topMargin">
+                         <number>14</number>
+                        </property>
+                        <property name="rightMargin">
+                         <number>16</number>
+                        </property>
+                        <property name="bottomMargin">
+                         <number>16</number>
+                        </property>
+                        <item>
+                         <widget class="QLabel" name="effectivenessTitle">
+                          <property name="styleSheet">
+                           <string notr="true">font-size: 21px;</string>
+                          </property>
+                          <property name="text">
+                           <string>Результат испытаний из истории</string>
+                          </property>
+                          <property name="wordWrap">
+                           <bool>true</bool>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>sectionTitle</string>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QFrame" name="effectivenessRule">
+                          <property name="frameShape">
+                           <enum>QFrame::NoFrame</enum>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>rule</string>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <layout class="QFormLayout" name="effectivenessFields">
+                          <property name="fieldGrowthPolicy">
+                           <enum>QFormLayout::FieldsStayAtSizeHint</enum>
+                          </property>
+                          <property name="rowWrapPolicy">
+                           <enum>QFormLayout::WrapLongRows</enum>
+                          </property>
+                          <property name="horizontalSpacing">
+                           <number>12</number>
+                          </property>
+                          <property name="verticalSpacing">
+                           <number>8</number>
+                          </property>
+                          <item row="0" column="0">
+                           <widget class="QLabel" name="testCountLabel">
+                            <property name="styleSheet">
+                             <string notr="true">font-size: 17px;</string>
+                            </property>
+                            <property name="text">
+                             <string>Испытаний</string>
+                            </property>
+                            <property name="buddy">
+                             <cstring>testCountInput</cstring>
+                            </property>
+                           </widget>
+                          </item>
+                          <item row="0" column="1">
+                           <widget class="QSpinBox" name="testCountInput">
+                             <property name="readOnly">
+                              <bool>true</bool>
+                             </property>
+                             <property name="buttonSymbols">
+                              <enum>QAbstractSpinBox::NoButtons</enum>
+                             </property>
+                            <property name="minimumSize">
+                             <size>
+                              <width>140</width>
+                              <height>27</height>
+                             </size>
+                            </property>
+                            <property name="styleSheet">
+                             <string notr="true">font-size: 16px;</string>
+                            </property>
+                            <property name="minimum">
+                             <number>0</number>
+                            </property>
+                            <property name="maximum">
+                             <number>100000</number>
+                            </property>
+                            <property name="value">
+                             <number>10</number>
+                            </property>
+                           </widget>
+                          </item>
+                          <item row="1" column="0">
+                           <widget class="QLabel" name="successCountLabel">
+                            <property name="styleSheet">
+                             <string notr="true">font-size: 17px;</string>
+                            </property>
+                            <property name="text">
+                             <string>Успешных</string>
+                            </property>
+                            <property name="buddy">
+                             <cstring>successCountInput</cstring>
+                            </property>
+                           </widget>
+                          </item>
+                          <item row="1" column="1">
+                           <widget class="QSpinBox" name="successCountInput">
+                             <property name="readOnly">
+                              <bool>true</bool>
+                             </property>
+                             <property name="buttonSymbols">
+                              <enum>QAbstractSpinBox::NoButtons</enum>
+                             </property>
+                            <property name="minimumSize">
+                             <size>
+                              <width>140</width>
+                              <height>27</height>
+                             </size>
+                            </property>
+                            <property name="styleSheet">
+                             <string notr="true">font-size: 16px;</string>
+                            </property>
+                            <property name="minimum">
+                             <number>0</number>
+                            </property>
+                            <property name="maximum">
+                             <number>100000</number>
+                            </property>
+                            <property name="value">
+                             <number>8</number>
+                            </property>
+                           </widget>
+                          </item>
+                         </layout>
+                        </item>
+                        <item alignment="Qt::AlignBottom">
+                         <widget class="QLabel" name="effectivenessLabel">
+                          <property name="text">
+                           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;Доля успешных применений&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                          </property>
+                          <property name="alignment">
+                           <set>Qt::AlignCenter</set>
+                          </property>
+                          <property name="wordWrap">
+                           <bool>true</bool>
+                          </property>
+                         </widget>
+                        </item>
+                        <item alignment="Qt::AlignTop">
+                         <widget class="QLabel" name="effectivenessValue">
+                          <property name="styleSheet">
+                           <string notr="true">font-size: 30px;</string>
+                          </property>
+                          <property name="text">
+                           <string>80 %</string>
+                          </property>
+                          <property name="alignment">
+                           <set>Qt::AlignCenter</set>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>featuredFigure</string>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <layout class="QHBoxLayout" name="successCostResult" stretch="1,0">
+                          <item>
+                           <widget class="QLabel" name="successCostLabel">
+                            <property name="text">
+                             <string>Стоимость успешного применения</string>
+                            </property>
+                            <property name="toolTip">
+                             <string>Затраты на все испытания делятся на число успешных применений</string>
+                            </property>
+                            <property name="wordWrap">
+                             <bool>true</bool>
+                            </property>
+                           </widget>
+                          </item>
+                          <item>
+                           <widget class="QLabel" name="successCostValue">
+                            <property name="text">
+                             <string>—</string>
+                            </property>
+                           </widget>
+                          </item>
+                         </layout>
+                        </item>
+                        <item>
+                         <widget class="QLabel" name="effectivenessError">
+                          <property name="wordWrap">
+                           <bool>true</bool>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>muted</string>
+                          </property>
+                         </widget>
+                        </item>
+                       </layout>
+                      </widget>
+                     </item>
+                    </layout>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <widget class="QTableWidget" name="compositionTable">
+                   <property name="minimumSize">
+                    <size>
+                     <width>0</width>
+                     <height>132</height>
+                    </size>
+                   </property>
+                   <property name="accessibleName">
+                    <string>Результат анализа состава</string>
+                   </property>
+                   <property name="editTriggers">
+                    <set>QAbstractItemView::NoEditTriggers</set>
+                   </property>
+                   <property name="selectionMode">
+                    <enum>QAbstractItemView::SingleSelection</enum>
+                   </property>
+                   <property name="selectionBehavior">
+                    <enum>QAbstractItemView::SelectRows</enum>
+                   </property>
+                   <property name="alternatingRowColors">
+                    <bool>true</bool>
+                   </property>
+                   <property name="wordWrap">
+                    <bool>true</bool>
+                   </property>
+                   <property name="textElideMode">
+                    <enum>Qt::ElideNone</enum>
+                   </property>
+                   <attribute name="verticalHeaderVisible">
+                    <bool>false</bool>
+                   </attribute>
+                   <column>
+                    <property name="text"><string>Компонент</string></property>
+                   </column>
+                   <column>
+                    <property name="text"><string>Доля</string></property>
+                   </column>
+                   <column>
+                    <property name="text"><string>Роль</string></property>
+                   </column>
+                   <column>
+                    <property name="text"><string>Что учесть</string></property>
+                   </column>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="compositionNotice">
                    <property name="text">
-                    <string>История появится после входа.</string>
+                    <string>Цвет показывает тип пометки. Сверяйте концентрации и предупреждения на упаковке.</string>
                    </property>
                    <property name="wordWrap">
                     <bool>true</bool>
@@ -2656,8 +2429,294 @@ QHeaderView::section {
                   </widget>
                  </item>
                 </layout>
-               </item>
-              </layout>
+               </widget>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+           <widget class="QWidget" name="accountPage">
+            <layout class="QVBoxLayout" name="accountPageContainer">
+             <property name="spacing"><number>0</number></property>
+             <property name="leftMargin"><number>0</number></property>
+             <property name="topMargin"><number>0</number></property>
+             <property name="rightMargin"><number>0</number></property>
+             <property name="bottomMargin"><number>0</number></property>
+             <item>
+              <widget class="QScrollArea" name="accountPageScroll">
+               <property name="frameShape"><enum>QFrame::NoFrame</enum></property>
+               <property name="widgetResizable"><bool>true</bool></property>
+               <widget class="QWidget" name="accountPageContent">
+                <layout class="QVBoxLayout" name="accountPageLayout">
+                 <property name="spacing">
+                  <number>13</number>
+                 </property>
+                 <property name="leftMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="accountTitle">
+                   <property name="text">
+                    <string>Личный кабинет</string>
+                   </property>
+                   <property name="role" stdset="0">
+                    <string>pageTitle</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QFrame" name="accountRule">
+                   <property name="frameShape">
+                    <enum>QFrame::NoFrame</enum>
+                   </property>
+                   <property name="role" stdset="0">
+                    <string>rule</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <layout class="QHBoxLayout" name="accountColumns" stretch="3,5">
+                   <property name="spacing">
+                    <number>23</number>
+                   </property>
+                   <item>
+                    <layout class="QVBoxLayout" name="signInColumn">
+                     <property name="spacing">
+                      <number>0</number>
+                     </property>
+                     <item alignment="Qt::AlignTop">
+                      <widget class="QFrame" name="signInCard">
+                       <property name="role" stdset="0">
+                        <string>sheet</string>
+                       </property>
+                       <layout class="QVBoxLayout" name="signInLayout">
+                        <property name="spacing">
+                         <number>9</number>
+                        </property>
+                        <property name="leftMargin">
+                         <number>16</number>
+                        </property>
+                        <property name="topMargin">
+                         <number>16</number>
+                        </property>
+                        <property name="rightMargin">
+                         <number>16</number>
+                        </property>
+                        <property name="bottomMargin">
+                         <number>16</number>
+                        </property>
+                        <item>
+                         <widget class="QLabel" name="signInTitle">
+                          <property name="text">
+                           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:18pt;&quot;&gt;Вход&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>sectionTitle</string>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QLabel" name="emailLabel">
+                          <property name="text">
+                           <string>Электронная почта</string>
+                          </property>
+                          <property name="buddy">
+                           <cstring>emailInput</cstring>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QLineEdit" name="emailInput">
+                          <property name="placeholderText">
+                           <string>name@example.ru</string>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QLabel" name="passwordLabel">
+                          <property name="text">
+                           <string>Пароль</string>
+                          </property>
+                          <property name="buddy">
+                           <cstring>passwordInput</cstring>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QLineEdit" name="passwordInput">
+                          <property name="echoMode">
+                           <enum>QLineEdit::Password</enum>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <layout class="QHBoxLayout" name="accountButtons">
+                          <item>
+                           <widget class="QPushButton" name="signInButton">
+                            <property name="text">
+                             <string>Войти</string>
+                            </property>
+                            <property name="role" stdset="0">
+                             <string>primary</string>
+                            </property>
+                           </widget>
+                          </item>
+                          <item>
+                           <widget class="QPushButton" name="registerButton">
+                            <property name="text">
+                             <string>Регистрация</string>
+                            </property>
+                           </widget>
+                          </item>
+                         </layout>
+                        </item>
+                        <item>
+                         <widget class="QLabel" name="accountStatus">
+                          <property name="wordWrap">
+                           <bool>true</bool>
+                          </property>
+                          <property name="role" stdset="0">
+                           <string>muted</string>
+                          </property>
+                         </widget>
+                        </item>
+                       </layout>
+                      </widget>
+                     </item>
+                    </layout>
+                   </item>
+                   <item>
+                    <layout class="QVBoxLayout" name="historyLayout">
+                     <property name="spacing">
+                      <number>9</number>
+                     </property>
+                     <item>
+                      <widget class="QLabel" name="historyTitle">
+                       <property name="text">
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;История запросов&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                       </property>
+                       <property name="role" stdset="0">
+                        <string>sectionTitle</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QLineEdit" name="historySearchInput">
+                       <property name="placeholderText">
+                        <string>Поиск по товару, действию или результату</string>
+                       </property>
+                       <property name="clearButtonEnabled">
+                        <bool>true</bool>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QTableWidget" name="historyTable">
+                       <property name="accessibleName">
+                        <string>История запросов</string>
+                       </property>
+                       <property name="editTriggers">
+                        <set>QAbstractItemView::NoEditTriggers</set>
+                       </property>
+                       <property name="alternatingRowColors">
+                        <bool>true</bool>
+                       </property>
+                       <property name="selectionMode">
+                        <enum>QAbstractItemView::SingleSelection</enum>
+                       </property>
+                       <property name="selectionBehavior">
+                        <enum>QAbstractItemView::SelectRows</enum>
+                       </property>
+                       <attribute name="horizontalHeaderDefaultSectionSize">
+                        <number>104</number>
+                       </attribute>
+                       <attribute name="horizontalHeaderStretchLastSection">
+                        <bool>true</bool>
+                       </attribute>
+                       <attribute name="verticalHeaderVisible">
+                        <bool>false</bool>
+                       </attribute>
+                       <attribute name="verticalHeaderDefaultSectionSize">
+                        <number>34</number>
+                       </attribute>
+                       <column>
+                        <property name="text">
+                         <string>Дата</string>
+                        </property>
+                       </column>
+                       <column>
+                        <property name="text">
+                         <string>Товар</string>
+                        </property>
+                       </column>
+                       <column>
+                        <property name="text">
+                         <string>Действие</string>
+                        </property>
+                       </column>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPlainTextEdit" name="historyDetails">
+                       <property name="accessibleName">
+                        <string>Подробности выбранной записи</string>
+                       </property>
+                       <property name="placeholderText">
+                        <string>Выберите запись, чтобы увидеть подробности</string>
+                       </property>
+                       <property name="readOnly">
+                        <bool>true</bool>
+                       </property>
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>108</height>
+                        </size>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <layout class="QHBoxLayout" name="historyRecordActions">
+                       <item>
+                        <widget class="QPushButton" name="copyHistoryButton">
+                         <property name="text"><string>Копировать запись</string></property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QPushButton" name="openHistoryButton">
+                         <property name="text"><string>Открыть расчёт</string></property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </item>
+                     <item>
+                      <widget class="QLabel" name="historyHint">
+                       <property name="text">
+                        <string>История появится после входа.</string>
+                       </property>
+                       <property name="wordWrap">
+                        <bool>true</bool>
+                       </property>
+                       <property name="role" stdset="0">
+                        <string>muted</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </item>
+                  </layout>
+                 </item>
+                </layout>
+               </widget>
+              </widget>
              </item>
             </layout>
            </widget>

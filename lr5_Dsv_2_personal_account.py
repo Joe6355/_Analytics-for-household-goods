@@ -39,9 +39,9 @@ class PersonalAccountCSV:
         history_layout = window.findChild(QVBoxLayout, "historyLayout")
         history_layout.addLayout(buttons)
 
-        self.load_button.clicked.connect(self.load_csv)
-        self.save_button.clicked.connect(self.save_csv)
-        self.account_button.clicked.connect(window.account.restore_history)
+        window.connect_screen_action(self.load_button.clicked, "Личный кабинет", self.load_csv)
+        window.connect_screen_action(self.save_button.clicked, "Личный кабинет", self.save_csv)
+        window.connect_screen_action(self.account_button.clicked, "Личный кабинет", window.account.restore_history)
 
     def load_csv(self):
         path, _ = QFileDialog.getOpenFileName(

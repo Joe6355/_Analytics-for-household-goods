@@ -1,16 +1,17 @@
-import json
-import os
+import logging
 import re
+import sqlite3
 from dataclasses import dataclass
+from functools import partial
 from html import escape
 
-from PyQt6.QtCore import QByteArray, QDateTime, QObject, QSignalBlocker, Qt, QUrl
-from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
+from PyQt6.QtCore import QDateTime, QObject, QRunnable, QSignalBlocker, QThreadPool, Qt, pyqtSignal, pyqtSlot
 from PyQt6.QtWidgets import QApplication, QHeaderView, QTableWidgetItem
 
+from account_storage import AccountStorage, RequestError
 
-DEFAULT_API_URL = "http://127.0.0.1:8765"
-MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+
+LOGGER = logging.getLogger(__name__)
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_-]{43}")
 
 
@@ -24,24 +25,50 @@ class HistoryRow:
     snapshot: dict | None = None
 
 
+class AccountJob(QRunnable):
+    def __init__(self, request, finished, callback):
+        super().__init__()
+        self.request = request
+        self.finished = finished
+        self.callback = callback
+
+    def run(self):
+        error = ""
+        try:
+            status, data = self.request()
+        except RequestError as failure:
+            status, data, error = failure.status, {}, str(failure)
+        except (OSError, sqlite3.Error):
+            LOGGER.exception("Не удалось открыть локальную базу аккаунтов")
+            status, data, error = 503, {}, "Локальная база недоступна. Проверьте доступ к папке data."
+        except Exception:
+            LOGGER.exception("Не удалось выполнить действие в личном кабинете")
+            status, data, error = 500, {}, "Не удалось прочитать данные личного кабинета."
+        self.finished.emit(self.callback, status, data, error)
+
+
 class AccountController(QObject):
-    def __init__(self, window):
+    result_ready = pyqtSignal(object, int, dict, str)
+
+    def __init__(self, window, database_path):
         super().__init__(window)
         self.window = window
-        self.network = QNetworkAccessManager(self)
-        self.api_url = QUrl(os.environ.get("HOUSEHOLD_API_URL", DEFAULT_API_URL).strip(), QUrl.ParsingMode.StrictMode)
+        self.storage = AccountStorage(database_path)
+        self.jobs = QThreadPool(self)
+        self.jobs.setMaxThreadCount(1)
+        self.result_ready.connect(self.finish_request)
         self.token = None
         self.history_request = 0
-        self.server_rows = []
+        self.account_rows = []
         self.csv_rows = None
         self.displayed_rows = []
 
         window.accountStatus.setTextFormat(Qt.TextFormat.PlainText)
         window.historyHint.setTextFormat(Qt.TextFormat.PlainText)
         window.signInTitle.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        window.signInButton.clicked.connect(self.sign_in_or_out)
-        window.registerButton.clicked.connect(lambda: self.authenticate("/register"))
-        window.passwordInput.returnPressed.connect(self.sign_in_or_out)
+        window.connect_screen_action(window.signInButton.clicked, "Личный кабинет", self.sign_in_or_out)
+        window.connect_screen_action(window.registerButton.clicked, "Личный кабинет", partial(self.authenticate, "/register"))
+        window.connect_screen_action(window.passwordInput.returnPressed, "Личный кабинет", self.sign_in_or_out)
         table = window.historyTable
         table.horizontalHeader().setStretchLastSection(False)
         table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
@@ -51,58 +78,20 @@ class AccountController(QObject):
         table.setColumnWidth(2, 142)
         table.itemSelectionChanged.connect(self.show_selected_record)
         window.historySearchInput.textChanged.connect(self.filter_history)
-        window.copyHistoryButton.clicked.connect(self.copy_selected_record)
-        window.openHistoryButton.clicked.connect(self.open_selected_record)
+        window.connect_screen_action(window.copyHistoryButton.clicked, "Личный кабинет", self.copy_selected_record)
+        window.connect_screen_action(window.openHistoryButton.clicked, "Личный кабинет", self.open_selected_record)
         self.show_session()
 
     def send(self, path, on_finished, *, data=None, token=None):
-        url = self.api_url
-        local_http = url.scheme() == "http" and url.host() in ("127.0.0.1", "::1", "localhost")
-        if (not url.isValid() or not url.host() or url.userInfo() or url.hasQuery() or url.hasFragment()
-                or (url.scheme() != "https" and not local_http)):
-            on_finished(0, {}, "Укажите HTTPS-адрес сервера или адрес localhost в HOUSEHOLD_API_URL.")
-            return
+        request = partial(self.storage.request, path, data=data, token=token)
+        self.jobs.start(AccountJob(request, self.result_ready, on_finished))
 
-        request = QNetworkRequest(QUrl(url.toString().rstrip("/") + path))
-        request.setTransferTimeout(8000)
-        request.setAttribute(QNetworkRequest.Attribute.RedirectPolicyAttribute,
-                             QNetworkRequest.RedirectPolicy.ManualRedirectPolicy)
-        request.setRawHeader(b"Accept", b"application/json")
-        if token:
-            request.setRawHeader(b"Authorization", f"Bearer {token}".encode("ascii"))
+    def finish_pending_jobs(self):
+        self.jobs.waitForDone()
 
-        if data is None:
-            reply = self.network.get(request)
-        else:
-            request.setHeader(QNetworkRequest.KnownHeaders.ContentTypeHeader, "application/json")
-            body = QByteArray(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
-            reply = self.network.post(request, body)
-        reply.setReadBufferSize(MAX_RESPONSE_BYTES + 1)
-        reply.readyRead.connect(lambda: self.check_response_size(reply))
-        reply.finished.connect(lambda: self.finish_request(reply, on_finished))
-
-    def check_response_size(self, reply):
-        if reply.bytesAvailable() > MAX_RESPONSE_BYTES:
-            reply.abort()
-
-    def finish_request(self, reply, on_finished):
-        status = reply.attribute(QNetworkRequest.Attribute.HttpStatusCodeAttribute) or 0
-        raw = bytes(reply.read(MAX_RESPONSE_BYTES + 1) or b"")
-        network_error = reply.error()
-        reply.deleteLater()
-        try:
-            data = json.loads(raw.decode("utf-8")) if len(raw) <= MAX_RESPONSE_BYTES else None
-        except (ValueError, RecursionError):
-            data = None
-
-        if 200 <= status < 300 and network_error == QNetworkReply.NetworkError.NoError and isinstance(data, dict):
-            on_finished(status, data, "")
-        elif status and isinstance(data, dict) and isinstance(data.get("error"), str):
-            on_finished(status, {}, data["error"])
-        elif status and network_error == QNetworkReply.NetworkError.NoError:
-            on_finished(status, {}, "Получен неожиданный ответ сервера.")
-        else:
-            on_finished(status, {}, "Не удалось связаться с сервером личного кабинета.")
+    @pyqtSlot(object, int, dict, str)
+    def finish_request(self, callback, status, data, error):
+        self.window.run_screen_action("Личный кабинет", callback, status, data, error)
 
     def set_auth_busy(self, busy):
         for field in (self.window.emailInput, self.window.passwordInput,
@@ -117,7 +106,7 @@ class AccountController(QObject):
             return
 
         self.set_auth_busy(True)
-        self.window.accountStatus.setText("Подключаюсь к серверу…")
+        self.window.accountStatus.setText("Проверяю локальный аккаунт…")
         self.send(path, self.finish_authentication, data={"email": email, "password": password})
 
     def finish_authentication(self, _status, data, error):
@@ -125,7 +114,7 @@ class AccountController(QObject):
         token = data.get("token")
         email = data.get("email")
         if error or not isinstance(token, str) or not TOKEN_PATTERN.fullmatch(token) or not isinstance(email, str):
-            self.window.accountStatus.setText(error or "Получен неожиданный ответ сервера.")
+            self.window.accountStatus.setText(error or "Получены некорректные данные аккаунта.")
             return
 
         self.token = token
@@ -147,7 +136,7 @@ class AccountController(QObject):
 
     def finish_logout(self, _status, _data, error):
         self.set_auth_busy(False)
-        message = "Сервер пока не подтвердил завершение сеанса." if error else "Вы вышли из аккаунта."
+        message = "Сеанс закрыт в приложении. Не удалось обновить локальную базу." if error else "Вы вышли из аккаунта."
         self.window.accountStatus.setText(message)
 
     def show_session(self):
@@ -161,7 +150,7 @@ class AccountController(QObject):
         window.signInButton.setText("Выйти" if signed_in else "Войти")
         window.signInTitle.setText("Аккаунт" if signed_in else "Вход")
         window.accountStatus.setText("" if signed_in else "Для регистрации нужен пароль от 15 символов.")
-        self.server_rows = []
+        self.account_rows = []
         self.csv_rows = None
         window.historySearchInput.clear()
         self.display_history([])
@@ -172,7 +161,7 @@ class AccountController(QObject):
         self.show_session()
         self.window.accountStatus.setText("Сеанс завершён. Войдите снова.")
 
-    def refresh_history(self):
+    def refresh_history(self, *, announce=False):
         token = self.token
         if not token or self.csv_rows is not None:
             return
@@ -190,13 +179,17 @@ class AccountController(QObject):
                     self.window.historyHint.setText(error)
             else:
                 self.show_history(data.get("entries"))
+                if announce and self.csv_rows is None:
+                    self.window.historyHint.setText(f"История обновлена. Записей — {len(self.account_rows)}.")
+                    if self.account_rows:
+                        self.window.historyTable.selectRow(0)
 
         self.send("/history", display, token=token)
 
     def show_history(self, entries):
         if not isinstance(entries, list) or not all(isinstance(entry, dict) for entry in entries):
             if self.csv_rows is None:
-                self.window.historyHint.setText("Сервер вернул историю в неизвестном формате.")
+                self.window.historyHint.setText("История имеет неизвестный формат.")
             return
 
         rows = []
@@ -213,7 +206,7 @@ class AccountController(QObject):
                 entry_id if type(entry_id) is int else None,
                 snapshot if isinstance(snapshot, dict) else None,
             ))
-        self.server_rows = rows
+        self.account_rows = rows
         if self.csv_rows is None:
             self.display_history(rows)
             self.window.historyHint.setText("Выберите запись, чтобы увидеть исходные данные и итог." if rows else "Пока пусто.")
@@ -301,9 +294,12 @@ class AccountController(QObject):
 
     def restore_history(self):
         self.csv_rows = None
-        self.display_history(self.server_rows)
-        self.window.historyHint.setText("Пока пусто." if self.token else "История появится после входа.")
-        self.refresh_history()
+        self.window.historySearchInput.clear()
+        self.display_history(self.account_rows)
+        if not self.token:
+            self.window.historyHint.setText("Войдите в аккаунт, чтобы открыть историю.")
+            return
+        self.refresh_history(announce=True)
 
     def record(self, action, product, details, *, snapshot=None):
         token = self.token

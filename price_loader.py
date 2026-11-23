@@ -1,4 +1,6 @@
 from dataclasses import replace
+from email import policy
+from email.parser import BytesParser
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QTimer, QUrl, QUrlQuery, pyqtSignal
@@ -6,7 +8,7 @@ from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtNetwork import QNetworkAccessManager, QNetworkReply, QNetworkRequest
 from PyQt6.QtWidgets import QApplication
 
-from browser_loader import BrowserCardReader
+from browser_loader import BrowserCardReader, resolve_product_address
 from store_page import (
     BROWSER_STORE_HOSTS, SUPPORTED_STORE_HOSTS, BrowserPageRequired,
     is_store_card, parse_product_page, store_host,
@@ -14,7 +16,9 @@ from store_page import (
 
 
 MAX_HTML_BYTES = 8 * 1024 * 1024
+MAX_ARCHIVE_BYTES = 32 * 1024 * 1024
 DOWNLOAD_TIMEOUT_MS = 30000
+MARKET_DETAILS_TIMEOUT_MS = 6500
 PAGE_TOO_LARGE = "Карточка слишком большая. Введите цену вручную."
 MARKET_TRACKING = {"cpc", "sponsored"}
 
@@ -27,6 +31,28 @@ def clean_market_url(url):
         if key.lower() in MARKET_TRACKING or key.lower().startswith("utm_"):
             query.removeAllQueryItems(key)
     url.setQuery(query)
+
+
+def read_saved_product(path):
+    path = Path(path)
+    archive = path.suffix.lower() in (".mhtml", ".mht")
+    limit = MAX_ARCHIVE_BYTES if archive else MAX_HTML_BYTES
+    with path.open("rb") as file:
+        data = file.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError(PAGE_TOO_LARGE)
+    if not archive:
+        return parse_product_page(data)
+
+    message = BytesParser(policy=policy.default).parsebytes(data)
+    body = message.get_body(preferencelist=("html",))
+    if body is None:
+        raise ValueError("В архиве браузера нет сохранённой HTML-страницы.")
+    html = body.get_payload(decode=True)
+    if not html or len(html) > MAX_HTML_BYTES:
+        raise ValueError("HTML в архиве отсутствует или превышает допустимый размер.")
+    address = body.get("Content-Location") or message.get("Snapshot-Content-Location") or ""
+    return parse_product_page(html, body.get("Content-Type", ""), page_address=address if is_store_card(address) else "")
 
 
 class PriceLoader(QObject):
@@ -46,6 +72,7 @@ class PriceLoader(QObject):
         self.browser_reader = None
         self.request_url = None
         self.download_error = ""
+        self.market_product = None
         QApplication.instance().aboutToQuit.connect(self.stop_browser)
 
     def load(self, address):
@@ -65,7 +92,8 @@ class PriceLoader(QObject):
             self.failed.emit("Укажите прямую ссылку на карточку товара.")
             return
         self.request_url = QUrl(url)
-        if host in BROWSER_STORE_HOSTS:
+        self.market_product = None
+        if host in BROWSER_STORE_HOSTS and host != "market.yandex.ru":
             self.load_browser(url)
             return
         request = QNetworkRequest(url)
@@ -76,26 +104,24 @@ class PriceLoader(QObject):
         self.reply.setReadBufferSize(MAX_HTML_BYTES + 1)
         self.reply.readyRead.connect(self.check_size)
         self.reply.finished.connect(self.finish)
-        self.timer.start(DOWNLOAD_TIMEOUT_MS)
+        self.timer.start(MARKET_DETAILS_TIMEOUT_MS if host == "market.yandex.ru" else DOWNLOAD_TIMEOUT_MS)
         self.started.emit()
 
     def load_file(self, path):
         if self.reply is not None or self.browser_reader is not None:
             return
         try:
-            with Path(path).open("rb") as file:
-                html = file.read(MAX_HTML_BYTES + 1)
-            if len(html) > MAX_HTML_BYTES:
-                raise ValueError(PAGE_TOO_LARGE)
-            product = parse_product_page(html)
+            product = read_saved_product(path)
         except OSError:
-            self.failed.emit("Не удалось открыть HTML-файл карточки.")
+            self.failed.emit("Не удалось открыть сохранённую карточку. Проверьте доступ к файлу.")
+        except BrowserPageRequired:
+            self.failed.emit("В сохранённой странице нет данных карточки. Сохраните полностью загруженную страницу товара в HTML или MHTML.")
         except ValueError as error:
             self.failed.emit(str(error))
         else:
             url = QUrl(product.url)
             store = url.host().removeprefix("www.") if url.scheme() in ("http", "https") else ""
-            self.loaded.emit(store, product)
+            self.loaded.emit(store, replace(product, price_note=product.price_note or "Из сохранённой карточки"))
 
     def load_browser(self, url, announce=True):
         self.browser_reader = BrowserCardReader(url.toString(), self)
@@ -114,11 +140,19 @@ class PriceLoader(QObject):
     def finish_browser(self):
         reader = self.browser_reader
         self.browser_reader = None
-        if reader.product is None:
+        product = reader.product
+        market_product = self.market_product
+        self.market_product = None
+        if market_product is not None:
+            if product is None and not reader.store_unavailable:
+                product = replace(market_product, price_note=market_product.price_note or "Из HTML карточки")
+            elif product is not None and product.package == market_product.package and product.name.casefold() == market_product.name.casefold():
+                product = replace(product, composition=product.composition or market_product.composition)
+        if product is None:
             self.failed.emit(reader.error)
         else:
             store = store_host(reader.address)
-            self.loaded.emit(store, reader.product)
+            self.loaded.emit(store, product)
         reader.deleteLater()
 
     def stop_browser(self):
@@ -141,6 +175,7 @@ class PriceLoader(QObject):
         self.reply = None
         self.timer.stop()
         use_browser = False
+        market_request = self.request_url is not None and store_host(self.request_url.toString()) == "market.yandex.ru"
         try:
             if self.download_error:
                 if self.download_error == PAGE_TOO_LARGE:
@@ -167,10 +202,20 @@ class PriceLoader(QObject):
             else:
                 self.failed.emit(str(error))
         except ValueError as error:
-            self.failed.emit(str(error))
+            if market_request:
+                use_browser = True
+            else:
+                self.failed.emit(str(error))
         else:
             address = self.request_url or reply.url()
-            self.loaded.emit(store, replace(product, url=address.toString(QUrl.ComponentFormattingOption.FullyEncoded)))
+            address_text = address.toString(QUrl.ComponentFormattingOption.FullyEncoded)
+            if market_request:
+                actual = reply.url().toString(QUrl.ComponentFormattingOption.FullyEncoded)
+                if resolve_product_address(address_text, actual):
+                    self.market_product = replace(product, url=address_text)
+                use_browser = True
+            else:
+                self.loaded.emit(store, replace(product, url=address_text))
         finally:
             reply.deleteLater()
         if use_browser:

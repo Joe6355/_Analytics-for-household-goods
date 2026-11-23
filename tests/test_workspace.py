@@ -35,7 +35,7 @@ class WorkspaceTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def new_comparison(self, window, name):
-        with patch("main.QInputDialog.getText", return_value=(name, True)):
+        with patch("prices_screen.QInputDialog.getText", return_value=(name, True)):
             window.newComparisonButton.click()
 
     def test_separate_comparisons_and_draft_survive_reopening(self):
@@ -160,12 +160,12 @@ class WorkspaceTests(unittest.TestCase):
         window.offersTable.selectRow(0)
 
         rename = window.manageComparisonButton.menu().actions()[0]
-        with patch("main.QInputDialog.getText", return_value=("  Fairy Лимон   ", True)):
+        with patch("prices_screen.QInputDialog.getText", return_value=("  Fairy Лимон   ", True)):
             rename.trigger()
         self.assertEqual(window.comparisonSelector.currentText(), "Fairy Лимон")
         self.assertEqual(window.offers[0].store, "Первый магазин")
         self.assertEqual(window.selected_offer_index(), 0)
-        with patch("main.QInputDialog.getText", return_value=("губки", True)):
+        with patch("prices_screen.QInputDialog.getText", return_value=("губки", True)):
             rename.trigger()
         self.assertEqual(window.comparisonSelector.currentText(), "Fairy Лимон")
 
@@ -194,6 +194,47 @@ class WorkspaceTests(unittest.TestCase):
         self.assertTrue(window.testCountInput.isReadOnly())
         window.successCountInput.setValue(0)
         self.assertEqual(window.successCostValue.text(), "—")
+
+    def test_price_headers_sort_numbers_and_double_click_uses_the_displayed_offer(self):
+        window = HouseholdGoodsWindow()
+        self.addCleanup(window.close)
+        for store, amount, price in (("Первый", 50, 99), ("Второй", 600, 300), ("Третий", 1000, 120)):
+            window.apply_loaded_product(
+                store, ProductPage(Decimal(price), CARD_URL + "#o" + str(amount), "Гель", (Decimal(amount), "мл")),
+            )
+        table = window.offersTable
+        header = table.horizontalHeader()
+        def order():
+            return [table.item(row, 1).text() for row in range(table.rowCount())]
+        self.assertEqual(order(), ["Третий", "Второй", "Первый"])
+        header.sectionClicked.emit(2)
+        self.assertEqual(order(), ["Первый", "Второй", "Третий"])
+        header.sectionClicked.emit(3)
+        self.assertEqual(order(), ["Первый", "Третий", "Второй"])
+        header.sectionClicked.emit(3)
+        self.assertEqual(order(), ["Второй", "Третий", "Первый"])
+        with patch("prices_screen.QDesktopServices.openUrl", return_value=True) as open_url:
+            table.cellDoubleClicked.emit(0, 0)
+            self.assertTrue(open_url.call_args.args[0].toString().endswith("#o600"))
+        table.selectRow(0)
+        window.useOfferButton.click()
+        self.assertEqual(window.packageInput.text(), "600")
+
+    def test_manual_unit_can_be_selected_with_existing_offers(self):
+        window = HouseholdGoodsWindow()
+        self.addCleanup(window.close)
+        first = window.comparison
+        for unit in ("мл", "г", "шт."):
+            self.assertTrue(window.offerUnit.isEnabled())
+            window.offerUnit.setCurrentText(unit)
+            window.storeInput.setText("Магазин")
+            window.offerPackageInput.setText("2")
+            window.offerPriceInput.setText("50")
+            window.addOfferButton.click()
+            self.assertEqual(window.comparison.unit, unit)
+            self.assertEqual(window.offersTable.item(0, 2).text(), f"2 {unit}")
+        self.assertEqual(len(window.workspace_state.comparisons), 3)
+        self.assertEqual((first.unit, len(first.offers)), ("мл", 1))
 
     def test_selected_rating_is_restored_and_updated_with_the_offer(self):
         with TemporaryDirectory() as directory:

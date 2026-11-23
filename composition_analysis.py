@@ -6,31 +6,34 @@ from unicodedata import normalize
 QUOTES = {'"': '"', '«': '»', '“': '”'}
 SYMBOLS = str.maketrans({"˂": "<", "˃": ">"})
 NUMBER = r"\d+(?:[.,]\d+)?"
-CONCENTRATION = re.compile(
-    rf"(?<!\w)((?:[<>≤≥]|(?:не\s+)?(?:менее|более|до|от))?\s*{NUMBER}"
-    rf"(?:\s*[-–—]\s*{NUMBER})?\s*%(?:\s+и\s+(?:более|менее))?)$",
-    re.IGNORECASE,
+CONCENTRATION_VALUE = (
+    rf"(?:[<>≤≥]|(?:не\s+)?(?:менее|более|до|от))?\s*{NUMBER}"
+    rf"(?:\s*[-–—]\s*{NUMBER})?\s*%(?:\s+и\s+(?:более|менее))?"
 )
+CONCENTRATION = re.compile(rf"(?<!\w)({CONCENTRATION_VALUE})$", re.IGNORECASE)
+LEADING_CONCENTRATION = re.compile(rf"^({CONCENTRATION_VALUE})(?=\s|:)", re.IGNORECASE)
 FRAGRANCE_BLEND = re.compile(r"\bпарфюмер\w+\s+композици\w*|\bсмесь\s+эфирных\s+масел")
 COMPONENT_PROFILES = (
-    (r"\b(?:отдуш\w*|парфюмер\w*|ароматизатор\w*|эфирн\w*\s+масл\w*|parfum|fragrance)\b",
-     "Отдушка", "У чувствительных людей возможна реакция на душистые вещества. Сверьте маркировку аллергенов."),
+    (r"\b(?:гидроксид натрия|едкий натр|каустическая сода|sodium hydroxide)\b",
+     "Регулятор кислотности", "Концентрированное вещество может вызвать ожоги. Сверьте предупреждения на упаковке.", "label"),
+    (r"\b(?:отдуш\w*|парфюмер\w*|ароматиз\w*|эфирн\w*\s+масл\w*|parfum|fragrance)\b",
+     "Отдушка", "У чувствительных людей возможна реакция на душистые вещества. Сверьте маркировку аллергенов.", "attention"),
     (r"\b(?:пав|тензид\w*|сурфактант\w*|лаурилсульфат\w*|лауретсульфат\w*)\b",
-     "Моющее вещество (ПАВ)", "Возможное раздражение кожи и глаз зависит от конкретного ПАВ и его концентрации."),
+     "Моющее вещество (ПАВ)", "Возможное раздражение кожи и глаз зависит от конкретного ПАВ и его концентрации.", "attention"),
     (r"\b(?:фермент\w*|(?:био)?энзим\w*|протеаз\w*|амилаз\w*|липаз\w*)\b",
-     "Фермент", "Помогает расщеплять загрязнения. Учитывайте предупреждения производителя."),
+     "Фермент", "Помогает расщеплять загрязнения. Учитывайте предупреждения производителя.", "attention"),
     (r"\b(?:бензоат\w*|сорбат\w*|консервант\w*)\b",
-     "Консервант", "Подавляет рост микроорганизмов в средстве. Для оценки нужна точная концентрация."),
+     "Консервант", "Подавляет рост микроорганизмов в средстве. Для оценки нужна точная концентрация.", "functional"),
     (r"\b(?:лимонн\w*\s+кислот\w*|цитрат\w*)\b",
-     "Регулятор кислотности", "Возможное раздражение зависит от кислотности готового средства."),
+     "Регулятор кислотности", "Возможное раздражение зависит от кислотности готового средства.", "attention"),
     (r"\b(?:полимер\w*|загустител\w*|соль пищев\w*|хлорид натрия)\b",
-     "Регулятор вязкости", "Для оценки важны вид вещества и его доля в составе."),
+     "Регулятор вязкости", "Для оценки важны вид вещества и его доля в составе.", "functional"),
     (r"\b(?:глицерин\w*|glycerin)\b",
-     "Удерживает влагу", "Компонент рецептуры. Для оценки важна концентрация в готовом средстве."),
+     "Удерживает влагу", "Компонент рецептуры. Для оценки важна концентрация в готовом средстве.", "functional"),
     (r"\b(?:экстракт\w*|aloe)\b",
-     "Растительный экстракт", "Возможна индивидуальная чувствительность."),
+     "Растительный экстракт", "Возможна индивидуальная чувствительность.", "attention"),
     (r"^(?:(?:подготовленная|очищенная|деминерализованная)\s+)?вода$|^aqua$",
-     "Основа, растворитель", "На основе воды смешивают остальные компоненты."),
+     "Основа, растворитель", "На основе воды смешивают остальные компоненты.", "base"),
 )
 
 
@@ -40,6 +43,7 @@ class Component:
     concentration: str
     role: str
     note: str
+    category: str
 
 
 def split_top_level(text, separators):
@@ -82,17 +86,21 @@ def analyze_components(text):
         if not name:
             continue
         strength = ""
-        match = CONCENTRATION.search(name.translate(SYMBOLS))
+        normalized = name.translate(SYMBOLS)
+        match = CONCENTRATION.search(normalized)
         if match and name[:match.start()].strip(" :"):
             strength = match[1].strip()
             name = name[:match.start()].strip(" :")
+        elif (match := LEADING_CONCENTRATION.match(normalized)) and name[match.end():].strip(" :"):
+            strength = match[1].strip()
+            name = name[match.end():].strip(" :")
         key = name.casefold().replace("ё", "е")
         if key in components:
             repeated[key] = components[key].name
             continue
-        role, note = next(
-            ((role, note) for pattern, role, note in COMPONENT_PROFILES if re.search(pattern, key)),
-            ("Не определено", "Для оценки нужно точное название вещества или данные производителя."),
+        role, note, category = next(
+            ((role, note, category) for pattern, role, note, category in COMPONENT_PROFILES if re.search(pattern, key)),
+            ("Не определено", "Для оценки нужно точное название вещества или данные производителя.", "unknown"),
         )
-        components[key] = Component(name, strength, role, note)
+        components[key] = Component(name, strength, role, note, category)
     return list(components.values()), list(repeated.values())

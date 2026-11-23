@@ -28,6 +28,7 @@ RECOMMENDATIONS = re.compile(
     re.MULTILINE | re.IGNORECASE,
 )
 OZON_DESCRIPTION = re.compile(r"^Описание\n(.*?)^Характеристики$", re.MULTILINE | re.DOTALL | re.IGNORECASE)
+MARKET_SPEC_LIST = re.compile(r'"specs"\s*:\s*(?=\[)')
 CHARSET = re.compile(r"charset\s*=\s*['\"]?([a-zA-Z0-9_-]+)", re.IGNORECASE)
 CAPTCHA_FORM = re.compile(r"(?:^|/)(?:checkcaptcha|showcaptcha)(?:[/?#]|$)", re.IGNORECASE)
 SAVED_FROM = re.compile(r"saved from url=\([0-9]+\)(https?://\S+)", re.IGNORECASE)
@@ -62,8 +63,8 @@ MULTIPACK_PATTERNS = (
         re.IGNORECASE,
     ),
 )
-COMPOSITION_LABELS = {"состав", "состав средства", "ингредиенты"}
-COMPOSITION_FIELD = re.compile(r"^(?:состав(?: средства)?|ингредиенты)(?:\s*:\s*(.*))?$", re.IGNORECASE)
+COMPOSITION_LABELS = {"состав", "состав средства", "состав товара", "ингредиенты"}
+COMPOSITION_FIELD = re.compile(r"^(?:состав(?: средства| товара)?|ингредиенты)(?:\s*:\s*(.*))?$", re.IGNORECASE)
 COMPOSITION_SECTION_END = re.compile(
     r"^(?:описание|характеристики|отзывы|вопросы|доставка|артикул|о товаре|"
     r"способ применения|меры предосторожности|подробнее|показать|перейти|раскрыть|свернуть|"
@@ -366,6 +367,19 @@ def browser_composition(details):
     return single_composition(values)
 
 
+def market_composition(html):
+    values = []
+    decoder = json.JSONDecoder()
+    for match in MARKET_SPEC_LIST.finditer(html):
+        try:
+            specs, _ = decoder.raw_decode(html, match.end())
+        except (ValueError, RecursionError):
+            continue
+        values.extend(clean_composition(spec.get("value")) for spec in specs
+                      if isinstance(spec, dict) and is_composition_label(spec.get("name")))
+    return single_composition(values)
+
+
 def find_multipack(name):
     matches = [match for pattern in MULTIPACK_PATTERNS for match in pattern.finditer(name)]
     if len(matches) != 1:
@@ -542,7 +556,7 @@ def parse_browser_product(text, address, title):
     return ProductPage(price, address, name, find_package(name, labels), price_note, composition, rating)
 
 
-def parse_product_page(html, content_type=""):
+def parse_product_page(html, content_type="", *, page_address=""):
     if not html.strip():
         raise BrowserPageRequired("Магазин вернул пустую страницу. Дождитесь загрузки карточки в браузере.")
     charset = CHARSET.search(content_type) or CHARSET.search(html[:2048].decode("ascii", errors="ignore"))
@@ -581,7 +595,7 @@ def parse_product_page(html, content_type=""):
                 "Сайт запросил проверку «Вы не робот?». Пройдите её в браузере и повторите добавление."
             )
         raise BrowserPageRequired("В HTML нет цены в рублях. Дождитесь появления цены в браузере.")
-    page_urls = (markup.canonical_url, product.get("url"), *sorted(markup.metadata["og:url"]), markup.saved_url)
+    page_urls = (markup.canonical_url, product.get("url"), *sorted(markup.metadata["og:url"]), markup.saved_url, page_address)
     page_url = next((url for url in page_urls if isinstance(url, str) and url.startswith(("https://", "http://"))), "")
     name = product.get("name")
     name = " ".join(name.split()) if isinstance(name, str) else ""
@@ -591,5 +605,7 @@ def parse_product_page(html, content_type=""):
     structured_comp = (clean_composition(prop.get("value")) for prop in product_properties(product)
                        if is_composition_label(prop["name"]))
     composition = single_composition([*markup.compositions, *structured_comp])
+    if not composition and page_url and store_host(page_url) == "market.yandex.ru" and is_store_card(page_url):
+        composition = market_composition(text)
     return ProductPage(prices.pop(), page_url, name, find_package(name, package_labels(product, markup.labels)),
                        composition=composition, rating=aggregate_rating(product.get("aggregateRating")))
