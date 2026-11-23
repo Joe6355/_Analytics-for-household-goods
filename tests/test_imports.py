@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import QApplication
 
 from browser_loader import product_redirect_message, resolve_product_address
 from composition_analysis import analyze_components
+from product_rating import CustomerRating
 from main import HouseholdGoodsWindow
 from price_loader import PriceLoader
 from store_page import (
@@ -26,6 +27,48 @@ ALI_NAME = "Набор губок-щеток для мытья посуды 6 ш
 
 
 class CardParsingTests(unittest.TestCase):
+    def test_product_header_ratings_keep_scores_and_count_types(self):
+        name = "Гель для посуды 900 мл"
+        cases = [
+            ("https://www.ozon.ru/product/gel-123/", "4.9 • 349 414 отзывов",
+             CustomerRating(Decimal("4.9"), review_count=349414)),
+            (WB_URL, "4,9 · 36 757 оценок", CustomerRating(Decimal("4.9"), rating_count=36757)),
+            ("https://5ka.ru/product/gel--123/", "4,89\n(227 оценок)",
+             CustomerRating(Decimal("4.89"), rating_count=227)),
+            ("https://market.yandex.ru/card/gel/123", "Рейтинг товара: 4.9 из 5\n487.8K купили",
+             CustomerRating(Decimal("4.9"))),
+        ]
+        for address, header, expected in cases:
+            with self.subTest(address=address):
+                page = parse_browser_product(f"{name}\n{header}\nЦена\n199 ₽\nВ корзину", address, name)
+                self.assertEqual(page.rating, expected)
+
+    def test_rating_distribution_requires_complete_counts_from_the_product(self):
+        name = "Гель для посуды 900 мл"
+        address = "https://www.ozon.ru/product/gel-123/"
+        card = f"{name}\n4,8 · 100 оценок\n199 ₽\nВ корзину"
+        distribution = "Распределение оценок\n5 звёзд — 80\n4 звезды\n12\n3 звезды — 4\n2 звезды — 3\n1 звезда — 1"
+        page = parse_browser_product(f"{card}\n{distribution}", address, name)
+        self.assertEqual(page.rating.star_counts, (1, 3, 4, 12, 80))
+        for text in (distribution.replace("2 звезды — 3\n", ""), distribution.replace("1 звезда — 1", "1 звезда — 2"),
+                     f"Покупают вместе\n{distribution}"):
+            with self.subTest(text=text):
+                self.assertIsNone(parse_browser_product(f"{card}\n{text}", address, name).rating.star_counts)
+        no_rating = f"{name}\n199 ₽\nВ корзину\nПохожие товары\n4,9 · 100 оценок\n{distribution}"
+        self.assertIsNone(parse_browser_product(no_rating, address, name).rating)
+
+    def test_html_uses_the_products_structured_rating(self):
+        schema = {
+            "@type": "Product", "name": "Гель 900 мл",
+            "offers": {"@type": "Offer", "price": "239.99", "priceCurrency": "RUB"},
+            "aggregateRating": {"ratingValue": "4.75", "ratingCount": 271, "reviewCount": 80},
+        }
+        def parse():
+            return parse_product_page(f'<script type="application/ld+json">{json.dumps(schema)}</script>'.encode())
+        self.assertEqual(parse().rating, CustomerRating(Decimal("4.75"), 271, 80))
+        schema["aggregateRating"]["bestRating"] = 10
+        self.assertIsNone(parse().rating)
+
     def test_composition_keeps_a_fragrance_blend_and_percentages_together(self):
         text = (
             'Подготовленная вода ˃ 30%; комплекс А-тензидов (анионные ПАВ, растительное масло) 5-15%; '

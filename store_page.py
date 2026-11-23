@@ -6,6 +6,8 @@ from decimal import Decimal, InvalidOperation
 from html.parser import HTMLParser
 from urllib.parse import urlsplit
 
+from product_rating import CustomerRating, aggregate_rating, browser_rating
+
 
 UNAVAILABLE = {"OutOfStock", "SoldOut", "Discontinued", "PreOrder", "PreSale", "BackOrder"}
 RUBLE_CURRENCIES = {"RUB", "RUR", "₽"}
@@ -78,6 +80,7 @@ class ProductPage:
     package: tuple[Decimal, str] | None
     price_note: str = ""
     composition: str = ""
+    rating: CustomerRating | None = None
 
 
 class BrowserPageRequired(ValueError):
@@ -472,6 +475,7 @@ def parse_browser_product(text, address, title):
         raise ValueError("Дождитесь появления названия и цены товара в браузере.")
     details = "\n".join(lines[lines.index(anchor) + 1:])
     card = RECOMMENDATIONS.split(details, maxsplit=1)[0]
+    rating = browser_rating(card.splitlines())
     composition = browser_composition(card)
     if not composition and host == "ozon.ru":
         # Ozon может разместить описание выбранного товара после блока «Покупают вместе».
@@ -535,7 +539,7 @@ def parse_browser_product(text, address, title):
             if unit.strip() in PACKAGE_UNITS and PRICE_TEXT.fullmatch(value):
                 value = f"{value} {unit.strip()}"
             labels.append(f"{key} {value}")
-    return ProductPage(price, address, name, find_package(name, labels), price_note, composition)
+    return ProductPage(price, address, name, find_package(name, labels), price_note, composition, rating)
 
 
 def parse_product_page(html, content_type=""):
@@ -588,4 +592,4 @@ def parse_product_page(html, content_type=""):
                        if is_composition_label(prop["name"]))
     composition = single_composition([*markup.compositions, *structured_comp])
     return ProductPage(prices.pop(), page_url, name, find_package(name, package_labels(product, markup.labels)),
-                       composition=composition)
+                       composition=composition, rating=aggregate_rating(product.get("aggregateRating")))

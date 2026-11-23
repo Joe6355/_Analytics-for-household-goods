@@ -305,7 +305,7 @@ class AccountController(QObject):
         self.window.historyHint.setText("Пока пусто." if self.token else "История появится после входа.")
         self.refresh_history()
 
-    def record(self, action, product, details, *, snapshot=None, success_message=""):
+    def record(self, action, product, details, *, snapshot=None):
         token = self.token
         if not token:
             return
@@ -321,10 +321,7 @@ class AccountController(QObject):
                 self.window.statusBar().showMessage("Сеанс завершён. Войдите снова, чтобы сохранять историю.", 8000)
             elif error:
                 self.window.statusBar().showMessage(f"Не удалось сохранить действие. {error}", 8000)
-            else:
-                if success_message:
-                    self.window.statusBar().showMessage(success_message, 4500)
-                if self.window.sectionStack.currentWidget() is self.window.accountPage:
-                    self.refresh_history()
+            elif self.window.sectionStack.currentWidget() is self.window.accountPage:
+                self.refresh_history()
 
         self.send("/history", saved, data=payload, token=token)

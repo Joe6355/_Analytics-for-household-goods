@@ -1,9 +1,10 @@
 import csv
+import json
 import logging
 import re
 import sys
 import tempfile
-from dataclasses import replace
+from dataclasses import asdict, replace
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from fractions import Fraction
@@ -19,6 +20,7 @@ from account_client import AccountController
 from composition_analysis import analyze_components
 from lr5_Dsv_2_personal_account import PersonalAccountCSV
 from price_loader import PriceLoader
+from product_rating import decode_customer_rating
 from workspace_state import DEFAULT_COMPARISON_NAME, Comparison, LocalWorkspace, Offer, UsageSamples, WorkspaceState
 
 
@@ -251,7 +253,6 @@ class HouseholdGoodsWindow(QMainWindow):
         self.compositionInput.textChanged.connect(self.clear_composition_result)
         self.productInput.textEdited.connect(self.clear_imported_composition)
         self.analyzeCompositionButton.clicked.connect(self.analyze_composition)
-        self.saveEffectivenessButton.clicked.connect(self.save_effectiveness)
         self.testCountInput.setValue(0)
         self.successCountInput.setValue(0)
         self.testCountInput.valueChanged.connect(self.update_effectiveness)
@@ -264,7 +265,7 @@ class HouseholdGoodsWindow(QMainWindow):
             "Расчёт расхода": (self.usagePage, lambda: self.check_usage(record=False)),
             "Прогноз": (self.forecastPage, lambda: self.show_forecast(record=False)),
             "Анализ состава": (self.characteristicsPage, lambda: self.analyze_composition(record=False)),
-            "Оценка эффективности": (self.characteristicsPage, self.update_effectiveness),
+            "Оценка эффективности": (self.characteristicsPage, self.show_archived_effectiveness),
         }
         self.account = AccountController(self)
         self.personal_account_csv = PersonalAccountCSV(self)
@@ -395,8 +396,10 @@ class HouseholdGoodsWindow(QMainWindow):
             with QSignalBlocker(selector):
                 selector.setCurrentIndex(max(0, index))
             selector.setToolTip(selector.currentData(Qt.ItemDataRole.ToolTipRole) or selector.currentText())
+        self.update_customer_rating()
 
     def choose_offer(self, offer_id):
+        self.show_customer_rating()
         if offer_id in self.offer_choices:
             self.apply_offer(*self.offer_choices[offer_id])
             if self.sectionStack.currentWidget() is self.usagePage and not self.measurementsInput.toPlainText().strip():
@@ -551,6 +554,7 @@ class HouseholdGoodsWindow(QMainWindow):
     def update_page(self):
         page = self.sectionStack.currentWidget()
         if page is self.characteristicsPage:
+            self.show_customer_rating()
             self.update_characteristics_package()
             if self.imported_composition and self.compositionTable.rowCount() == 0:
                 self.analyze_composition(record=False, show_empty=False)
@@ -603,10 +607,8 @@ class HouseholdGoodsWindow(QMainWindow):
         inputs.append(f"Замеры ({unit})\n{self.measurementsInput.toPlainText().strip()}")
         return "\n".join(inputs)
 
-    def record_calculation(self, action, details, *, success_message=""):
-        self.account.record(
-            action, self.productInput.text(), details, snapshot=self.draft_values(), success_message=success_message,
-        )
+    def record_calculation(self, action, details):
+        self.account.record(action, self.productInput.text(), details, snapshot=self.draft_values())
 
     def check_usage(self, *, record=True):
         self.clear_usage_result()
@@ -770,6 +772,7 @@ class HouseholdGoodsWindow(QMainWindow):
         self.offer_name = product.name
         self.offer_price_note = product.price_note
         self.offer_composition = product.composition
+        self.offer_rating = product.rating
         self.offer_card_url = card_address(product.url)
         self.offer_loaded_at = current_price_time()
         amount_text = format(amount, "f").replace(".", ",") if amount is not None else ""
@@ -825,7 +828,7 @@ class HouseholdGoodsWindow(QMainWindow):
 
         updated = replace(
             offer, price=product.price, price_note=product.price_note, loaded_at=current_price_time(),
-            composition=product.composition or offer.composition,
+            composition=product.composition or offer.composition, rating=product.rating or offer.rating,
         )
         self.offers[index] = updated
         self.offers.sort(key=lambda item: item.price_per_unit)
@@ -855,6 +858,8 @@ class HouseholdGoodsWindow(QMainWindow):
             details += f"\nУсловие цены — {updated.price_note}"
         self.account.record("Обновление цены", updated.product, details)
         message = "Цена и состав обновлены." if composition_changed else "Цена обновлена."
+        if updated.rating != offer.rating:
+            message += " Оценка покупателей обновлена."
         self.statusBar().showMessage(message, 6000)
 
     def add_offer(self):
@@ -869,7 +874,7 @@ class HouseholdGoodsWindow(QMainWindow):
 
         self.offers.append(Offer(
             store, amount, price, self.offer_name, self.offer_price_note, self.offer_composition,
-            self.offer_card_url, self.offer_loaded_at,
+            self.offer_card_url, self.offer_loaded_at, rating=self.offer_rating,
         ))
         self.offers.sort(key=lambda offer: offer.price_per_unit)
         self.update_offers_table()
@@ -892,6 +897,7 @@ class HouseholdGoodsWindow(QMainWindow):
         self.offer_name = ""
         self.offer_price_note = ""
         self.offer_composition = ""
+        self.offer_rating = None
         self.offer_card_url = ""
         self.offer_loaded_at = ""
         self.productLinkInput.clear()
@@ -980,11 +986,12 @@ class HouseholdGoodsWindow(QMainWindow):
             with open(path, encoding="utf-8-sig", newline="") as stream:
                 reader = csv.reader(stream, delimiter=";", strict=True)
                 headers = next(reader, [])
-                if (len(headers) not in (5, 6, 9)
+                if (len(headers) not in (5, 6, 9, 10)
                         or headers[:4] != ["Товар", "Магазин", "Упаковка", "Цена, ₽"]
                         or headers[4] not in {f"За {1 if u == 'шт.' else 100} {u}, ₽" for u in units}
                         or (len(headers) >= 6 and headers[5] != "Примечание к цене")
-                        or (len(headers) == 9 and headers[6:] != ["Состав", "Ссылка", "Дата загрузки"])):
+                        or (len(headers) >= 9 and headers[6:9] != ["Состав", "Ссылка", "Дата загрузки"])
+                        or (len(headers) == 10 and headers[9] != "Оценка покупателей")):
                     raise ValueError("Неверные заголовки CSV. Используйте файл, сохранённый приложением.")
                 for row in reader:
                     if not row or all(not cell.strip() for cell in row):
@@ -1000,13 +1007,15 @@ class HouseholdGoodsWindow(QMainWindow):
                         if not row[1].strip():
                             raise ValueError("Не указан магазин.")
                         amount, price = read_package(amount_text, row[3])
-                        if len(row) == 9 and row[8]:
+                        if len(row) >= 9 and row[8]:
                             datetime.fromisoformat(row[8])
+                        rating = decode_customer_rating(json.loads(row[9])) if len(row) == 10 and row[9] else None
                         offers.append(Offer(
                             row[1].strip(), amount, price,
                             "" if row[0] == "—" else row[0],
                             row[5] if len(row) >= 6 else "",
-                            *(row[6:] if len(row) == 9 else ("", "", "")),
+                            *(row[6:9] if len(row) >= 9 else ("", "", "")),
+                            rating=rating,
                         ))
                         unit = row_unit
                     except (ValueError, InvalidOperation) as error:
@@ -1043,7 +1052,7 @@ class HouseholdGoodsWindow(QMainWindow):
                 writer.writerow([
                     "Товар", "Магазин", "Упаковка", "Цена, ₽",
                     f"За {scale} {unit}, ₽", "Примечание к цене",
-                    "Состав", "Ссылка", "Дата загрузки",
+                    "Состав", "Ссылка", "Дата загрузки", "Оценка покупателей",
                 ])
                 for offer in self.offers:
                     writer.writerow([
@@ -1052,6 +1061,7 @@ class HouseholdGoodsWindow(QMainWindow):
                         format(offer.price, "f").replace(".", ","),
                         format_number(offer.price_per_unit * scale, 2),
                         offer.price_note, offer.composition, offer.card_url, offer.loaded_at,
+                        json.dumps(asdict(offer.rating), default=str) if offer.rating is not None else "",
                     ])
             temporary_path.replace(path)
         except (OSError, UnicodeError, csv.Error) as error:
@@ -1181,6 +1191,44 @@ class HouseholdGoodsWindow(QMainWindow):
             lines = [f"{item.name} [{item.concentration or 'доля не указана'}] — {item.role}. {item.note}" for item in components]
             self.record_calculation("Анализ состава", "\n".join([result, "", *lines]))
 
+    def update_customer_rating(self):
+        choice = self.offer_choices.get(self.selected_offer_id)
+        offer = choice[1] if choice is not None else None
+        rating = offer.rating if offer is not None else None
+        score, count_text, positive = "", "", ""
+        source = "Нет данных об оценках"
+        if rating is not None:
+            score = f"{format_number(Fraction(rating.score), 2, trim=True)} из 5"
+            count_labels = []
+            for name, count in (("Оценок", rating.rating_count), ("Отзывов", rating.review_count)):
+                if count is not None:
+                    count_labels.append(f"{name} — {count:,}".replace(",", " "))
+            count_text = "\n".join(count_labels)
+            if rating.star_counts:
+                total = sum(rating.star_counts)
+                share = Fraction(100 * sum(rating.star_counts[3:]), total)
+                mark = "≈ " if share.denominator != 1 else ""
+                percent = format_number(share, 1, trim=True)
+                positive = f"{mark}{percent} % оценок — 4 или 5 звёзд"
+                if total != rating.rating_count:
+                    positive += f"\nОценок в разбивке — {total:,}".replace(",", " ")
+            source = f"Источник — {offer.store}" if offer.store else "Данные из карточки магазина"
+        for label, value in (
+            (self.customerRatingValue, score), (self.customerRatingCount, count_text),
+            (self.customerRatingPositive, positive), (self.customerRatingSource, source),
+        ):
+            label.setText(value)
+            label.setVisible(bool(value))
+
+    def show_customer_rating(self):
+        self.effectivenessSheet.hide()
+        self.customerRatingSheet.show()
+
+    def show_archived_effectiveness(self):
+        self.customerRatingSheet.hide()
+        self.effectivenessSheet.show()
+        self.update_effectiveness()
+
     def update_effectiveness(self):
         tested = self.testCountInput.value()
         successful = self.successCountInput.value()
@@ -1190,7 +1238,7 @@ class HouseholdGoodsWindow(QMainWindow):
         if successful > tested:
             error = f"Успешных применений может быть от 0 до {tested}."
         elif not tested:
-            error = "Введите число испытаний и сколько из них было успешными."
+            error = "В записи нет данных об испытаниях."
         else:
             percent = Fraction(100 * successful, tested)
             result = f"{format_quantity(percent)} %"
@@ -1198,29 +1246,16 @@ class HouseholdGoodsWindow(QMainWindow):
                 try:
                     amount, price, samples = self.read_usage_fields()
                 except (ValueError, InvalidOperation):
-                    error = "Для расчёта стоимости добавьте фасовку, цену и замеры в «Расходе»."
+                    error = "В записи недостаточно данных для расчёта стоимости."
                 else:
                     _, cost_per_use, _ = calculate_usage(amount, price, samples)
                     success_cost = f"{format_number(cost_per_use * Fraction(tested, successful), 2)} ₽"
             else:
-                error = "Стоимость успешного применения появится, когда будет хотя бы один успех."
+                error = "В записи нет успешных применений."
         self.effectivenessValue.setText(result)
         self.successCostValue.setText(success_cost)
         self.effectivenessError.setText(error)
         self.effectivenessError.setVisible(bool(error))
-        self.saveEffectivenessButton.setEnabled(0 < tested and successful <= tested)
-
-    def save_effectiveness(self):
-        if not self.account.token:
-            self.statusBar().showMessage("Войдите в личный кабинет, чтобы сохранить оценку в истории.", 8000)
-            return
-        details = (
-            f"Испытаний — {self.testCountInput.value()}\n"
-            f"Успешных — {self.successCountInput.value()}\n"
-            f"Доля успешных — {self.effectivenessValue.text()}\n"
-            f"Стоимость успешного применения — {self.successCostValue.text()}"
-        )
-        self.record_calculation("Оценка эффективности", details, success_message="Оценка сохранена в истории.")
 
 
 if __name__ == "__main__":

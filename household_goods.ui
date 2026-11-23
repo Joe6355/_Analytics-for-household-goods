@@ -2011,8 +2011,95 @@ QHeaderView::section {
                </item>
                <item>
                 <layout class="QVBoxLayout" name="effectivenessSheetColumn">
+                 <item alignment="Qt::AlignTop">
+                  <widget class="QFrame" name="customerRatingSheet">
+                   <property name="role" stdset="0">
+                    <string>sheet</string>
+                   </property>
+                   <layout class="QVBoxLayout" name="customerRatingLayout">
+                    <property name="spacing">
+                     <number>10</number>
+                    </property>
+                    <property name="leftMargin">
+                     <number>16</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>14</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>16</number>
+                    </property>
+                    <property name="bottomMargin">
+                     <number>16</number>
+                    </property>
+                    <item>
+                     <widget class="QLabel" name="customerRatingTitle">
+                      <property name="text">
+                       <string>Оценка покупателей</string>
+                      </property>
+                      <property name="role" stdset="0">
+                       <string>sectionTitle</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QFrame" name="customerRatingRule">
+                      <property name="frameShape">
+                       <enum>QFrame::NoFrame</enum>
+                      </property>
+                      <property name="role" stdset="0">
+                       <string>rule</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="customerRatingValue">
+                      <property name="styleSheet">
+                       <string notr="true">font-size: 30px;</string>
+                      </property>
+                      <property name="role" stdset="0">
+                       <string>featuredFigure</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="customerRatingCount">
+                      <property name="wordWrap">
+                       <bool>true</bool>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="customerRatingPositive">
+                      <property name="wordWrap">
+                       <bool>true</bool>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="customerRatingSource">
+                      <property name="text">
+                       <string>Нет данных об оценках</string>
+                      </property>
+                      <property name="textFormat">
+                       <enum>Qt::PlainText</enum>
+                      </property>
+                      <property name="wordWrap">
+                       <bool>true</bool>
+                      </property>
+                      <property name="role" stdset="0">
+                       <string>muted</string>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </widget>
+                 </item>
                  <item>
                   <widget class="QFrame" name="effectivenessSheet">
+                   <property name="visible">
+                    <bool>false</bool>
+                   </property>
                    <property name="role" stdset="0">
                     <string>sheet</string>
                    </property>
@@ -2038,7 +2125,10 @@ QHeaderView::section {
                        <string notr="true">font-size: 21px;</string>
                       </property>
                       <property name="text">
-                       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;Эффективность&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                       <string>Результат испытаний из истории</string>
+                      </property>
+                      <property name="wordWrap">
+                       <bool>true</bool>
                       </property>
                       <property name="role" stdset="0">
                        <string>sectionTitle</string>
@@ -2084,6 +2174,12 @@ QHeaderView::section {
                       </item>
                       <item row="0" column="1">
                        <widget class="QSpinBox" name="testCountInput">
+                         <property name="readOnly">
+                          <bool>true</bool>
+                         </property>
+                         <property name="buttonSymbols">
+                          <enum>QAbstractSpinBox::NoButtons</enum>
+                         </property>
                         <property name="minimumSize">
                          <size>
                           <width>140</width>
@@ -2119,6 +2215,12 @@ QHeaderView::section {
                       </item>
                       <item row="1" column="1">
                        <widget class="QSpinBox" name="successCountInput">
+                         <property name="readOnly">
+                          <bool>true</bool>
+                         </property>
+                         <property name="buttonSymbols">
+                          <enum>QAbstractSpinBox::NoButtons</enum>
+                         </property>
                         <property name="minimumSize">
                          <size>
                           <width>140</width>
@@ -2193,13 +2295,6 @@ QHeaderView::section {
                        </widget>
                       </item>
                      </layout>
-                    </item>
-                    <item>
-                     <widget class="QPushButton" name="saveEffectivenessButton">
-                      <property name="text">
-                       <string>Сохранить оценку</string>
-                      </property>
-                     </widget>
                     </item>
                     <item>
                      <widget class="QLabel" name="effectivenessError">

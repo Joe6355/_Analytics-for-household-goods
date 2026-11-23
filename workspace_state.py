@@ -7,6 +7,8 @@ from uuid import uuid4
 
 from PyQt6.QtCore import QIODevice, QLockFile, QSaveFile
 
+from product_rating import CustomerRating, decode_customer_rating
+
 
 UNITS = {"мл", "г", "шт."}
 DEFAULT_COMPARISON_NAME = "Основное сравнение"
@@ -23,6 +25,7 @@ class Offer:
     card_url: str = ""
     loaded_at: str = ""
     offer_id: str = field(default_factory=lambda: uuid4().hex)
+    rating: CustomerRating | None = None
 
     @property
     def price_per_unit(self):
@@ -63,7 +66,10 @@ def decode_state(data):
             if not comparison.name.strip() or comparison.unit not in UNITS:
                 raise ValueError("Неверное название или единица в списке сравнения.")
             for entry in value["offers"]:
-                offer = Offer(**{**entry, "amount": Decimal(entry["amount"]), "price": Decimal(entry["price"])})
+                offer = Offer(**{
+                    **entry, "amount": Decimal(entry["amount"]), "price": Decimal(entry["price"]),
+                    "rating": decode_customer_rating(entry.get("rating")),
+                })
                 if not offer.amount.is_finite() or offer.amount <= 0 or not offer.price.is_finite() or offer.price < 0:
                     raise ValueError("Неверная цена или фасовка в списке сравнения.")
                 if not all(isinstance(text, str) for text in (

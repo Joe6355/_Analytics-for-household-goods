@@ -12,6 +12,7 @@ from PyQt6.QtTest import QTest
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from main import HouseholdGoodsWindow
+from product_rating import CustomerRating
 from store_page import ProductPage
 from workspace_state import LocalWorkspace, Offer
 
@@ -187,8 +188,42 @@ class WorkspaceTests(unittest.TestCase):
         window.successCountInput.setValue(8)
         self.assertEqual(window.effectivenessValue.text(), "80 %")
         self.assertEqual(window.successCostValue.text(), "2,50 ₽")
+        self.assertTrue(window.effectivenessSheet.isHidden())
+        window.open_history_record("Оценка эффективности", window.draft_values())
+        self.assertFalse(window.effectivenessSheet.isHidden())
+        self.assertTrue(window.testCountInput.isReadOnly())
         window.successCountInput.setValue(0)
         self.assertEqual(window.successCostValue.text(), "—")
+
+    def test_selected_rating_is_restored_and_updated_with_the_offer(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "workspace.json"
+            package = (Decimal(500), "мл")
+            rating = CustomerRating(Decimal("4.89"), review_count=1234)
+            with open_window(path) as window:
+                window.apply_loaded_product("Магазин", ProductPage(Decimal(200), CARD_URL, "Гель", package, rating=rating))
+                offer_id = window.offers[0].offer_id
+                window.apply_loaded_product("Другой магазин", ProductPage(Decimal(230), "", "Гель", package))
+                selector = window.characteristicsOfferSelector
+                selector.setCurrentIndex(selector.findData(offer_id))
+                self.assertEqual(window.customerRatingValue.text(), "4,89 из 5")
+                self.assertEqual(window.customerRatingCount.text(), "Отзывов — 1 234")
+                self.assertEqual(window.customerRatingPositive.text(), "")
+                selector.setCurrentIndex(selector.findData(window.offers[1].offer_id))
+                self.assertEqual(window.customerRatingSource.text(), "Нет данных об оценках")
+                selector.setCurrentIndex(selector.findData(offer_id))
+
+            with open_window(path) as window:
+                self.assertEqual(window.customerRatingValue.text(), "4,89 из 5")
+                self.assertEqual(window.offers[0].rating, rating)
+                window.offersTable.selectRow(0)
+                refreshed = CustomerRating(Decimal("4.8"), rating_count=100, star_counts=(1, 3, 4, 12, 80))
+                with patch.object(window.price_loader, "load"):
+                    window.refreshOfferButton.click()
+                    window.price_loader.loaded.emit("Магазин", ProductPage(Decimal(205), CARD_URL, "Гель", package,
+                                                                          rating=refreshed))
+                self.assertEqual(window.customerRatingCount.text(), "Оценок — 100")
+                self.assertEqual(window.customerRatingPositive.text(), "92 % оценок — 4 или 5 звёзд")
 
     def test_old_window_cannot_overwrite_newer_local_state(self):
         with TemporaryDirectory() as directory:
